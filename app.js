@@ -86,7 +86,11 @@ function release(e, cancelled = false) {
   drag = null;
   if (cancelled || pull < 8) return;
   const power = pull / MAX_PULL;
-  const speed = 72 + 610 * Math.pow(power, 1.08);
+  // Lift gentle pulls while preserving the existing strong/full launch speeds.
+  // The bump fades to zero by 65% pull and keeps speed increasing throughout.
+  const softBand = Math.min(power / 0.65, 1);
+  const softBoost = 110 * Math.pow(Math.sin(Math.PI * softBand), 2);
+  const speed = 72 + 610 * Math.pow(power, 1.08) + softBoost;
   const norm = Math.hypot(dx, dy) || 1;
   shooter.vx = (dx / norm) * speed;
   shooter.vy = (dy / norm) * speed;
