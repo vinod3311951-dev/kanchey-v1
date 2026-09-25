@@ -89,7 +89,7 @@ function unlockAudio() {
 function setupMusic(){
   if(!audio)return;
   if(!musicGain){musicGain=audio.createGain();musicGain.gain.value=0;musicGain.connect(audio.destination);}
-  musicGain.gain.setTargetAtTime(musicOn?.012:0,audio.currentTime,.15);
+  musicGain.gain.setTargetAtTime(musicOn?.022:0,audio.currentTime,.15);
   if(musicOn)musicNext=audio.currentTime+.08;
 }
 function updateMusic(){
@@ -124,7 +124,7 @@ function spawnCoins(x,y) {
   rewardSound(0);
 }
 function spawnLevelBurst() {
-  const colors=["#d52f3f","#f0802e","#7a4fc7","#267dcc"];
+  const colors=["#00a7c7","#087f5b","#6c4bd3","#ff8a3d","#e83e6f","#16a085"];
   for(let i=0;i<90;i++)levelBurst.push({x:W/2+(Math.random()-.5)*W*.32,y:H*.48,vx:(Math.random()-.5)*360,vy:-125-Math.random()*300,age:0,color:colors[i%4],spin:Math.random()*6.28});
   rewardSound(1);
 }
@@ -416,24 +416,24 @@ function drawBall(b) {
   ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,Math.PI*2);ctx.strokeStyle="rgba(50,70,75,.38)";ctx.lineWidth=1.2;ctx.stroke();
   ctx.restore();
 }
+function labelBox(text,cx,cy,font="600 13px system-ui, sans-serif",fill="#087f5b",padX=12,h=27){
+  ctx.save();ctx.font=font;const w=Math.min(W-20,ctx.measureText(text).width+padX*2);
+  ctx.fillStyle=fill;ctx.fillRect(cx-w/2,cy-h/2,w,h);
+  ctx.fillStyle="#fff";ctx.textAlign="center";ctx.textBaseline="middle";ctx.font=font;ctx.fillText(text,cx,cy+1);ctx.restore();
+}
 function render() {
   ctx.fillStyle = "#fbfcfd"; ctx.fillRect(0, 0, W, H);
   // Subtle cool tabletop shadowing keeps the white board tactile rather than flat.
   const tableGlow=ctx.createRadialGradient(W*.5,H*.52,20,W*.5,H*.52,Math.max(W,H)*.72);
   tableGlow.addColorStop(0,"rgba(222,237,240,.20)");tableGlow.addColorStop(1,"rgba(255,255,255,0)");ctx.fillStyle=tableGlow;ctx.fillRect(0,0,W,H);
-  ctx.textAlign = "center"; ctx.textBaseline = "middle";
-  ctx.fillStyle = "#263238";
-  ctx.font = "600 12px system-ui, sans-serif";
-  ctx.letterSpacing = "1.6px";
-  ctx.fillText("KANCHEY  •  "+CHAPTERS[Math.floor((level-1)/15)].toUpperCase(), W / 2, Math.max(35, H * 0.09));
-  ctx.fillStyle="#2c5360";ctx.font="bold 12px system-ui,sans-serif";
-  ctx.fillText("LEVELS",42,43);ctx.fillText(musicOn?"♫ ON":"♫ OFF",W-42,43);ctx.fillStyle="#263238";
-  ctx.font = "600 17px system-ui, sans-serif";
-  ctx.fillText("HITS " + hits + " / " + shots, W / 2, Math.max(63, H * 0.14));
-  ctx.font = "600 14px system-ui, sans-serif";
-  ctx.fillText("LEVEL " + level + "/105  •  CLEARED " + cleared + "/3  •  SHOTS " + roundShots, W / 2, Math.max(87, H * 0.18));
-  ctx.font = "600 13px system-ui, sans-serif";
-  ctx.fillText("BEST " + (bestShots === null ? "—" : bestShots + " SHOTS"), W / 2, Math.max(109, H * 0.215));
+  ctx.textAlign="center";ctx.textBaseline="middle";ctx.letterSpacing="0px";
+  const chapterName=CHAPTERS[Math.floor((level-1)/15)].toUpperCase();
+  labelBox("KANCHEY  •  "+chapterName,W/2,Math.max(35,H*.09),"600 12px system-ui, sans-serif","#087f5b",13,28);
+  labelBox("LEVELS",48,43,"bold 11px system-ui, sans-serif","#1597c4",10,25);
+  labelBox(musicOn?"♫ ON":"♫ OFF",W-48,43,"bold 11px system-ui, sans-serif",musicOn?"#087f5b":"#1597c4",10,25);
+  labelBox("HITS "+hits+" / "+shots,W/2,Math.max(68,H*.14),"600 16px system-ui, sans-serif","#1597c4",15,30);
+  labelBox("LEVEL "+level+"/105  •  CLEARED "+cleared+"/3  •  SHOTS "+roundShots,W/2,Math.max(101,H*.18),"600 12px system-ui, sans-serif","#087f5b",10,27);
+  labelBox("BEST "+(bestShots===null?"—":bestShots+" SHOTS"),W/2,Math.max(132,H*.215),"600 12px system-ui, sans-serif","#1597c4",12,26);
   if (resultText && resultAge < 1.2) {
     ctx.font = "bold 26px system-ui, sans-serif";
     ctx.fillStyle = resultText === "HIT!" ? "#f7e9b1" : "#55361f";
@@ -447,8 +447,7 @@ function render() {
   ctx.fillStyle="rgba(42,63,68,.12)"; ctx.fillRect(barX,barY,barW,barH);
   if (energy>0) { const eg=ctx.createLinearGradient(barX,0,barX+barW,0);eg.addColorStop(0,"#43b6e8");eg.addColorStop(.5,"#4bd08a");eg.addColorStop(1,"#ffd64a");ctx.fillStyle=eg;ctx.fillRect(barX,barY,barW*energy,barH); }
   ctx.strokeStyle="rgba(42,63,68,.42)"; ctx.lineWidth=1.5; ctx.strokeRect(barX,barY,barW,barH);
-  ctx.fillStyle="#263238"; ctx.font="700 10px system-ui, sans-serif";
-  ctx.fillText("ENERGY  "+Math.round(energy*100)+"%",W/2,barY-10);
+  labelBox("ENERGY  "+Math.round(energy*100)+"%",W/2,barY-12,"700 10px system-ui, sans-serif","#087f5b",10,22);
   for (const t of targets) {
     if (t.cleared) continue;
     ctx.beginPath(); ctx.arc(t.x, t.y, t.r + 20, 0, Math.PI * 2);
@@ -477,7 +476,7 @@ function render() {
   drawFX();
   // Potli tray remains visible; collection book opens with a tap.
   // Compact colourful Potli chip. One tap opens; tapping the overlay anywhere closes.
-  ctx.fillStyle="rgba(27,49,55,.92)";ctx.fillRect(W-96,H-76,84,56);
+  ctx.fillStyle="#087f5b";ctx.fillRect(W-96,H-76,84,56);
   const pg=ctx.createLinearGradient(W-96,0,W-12,0);pg.addColorStop(0,"#48bce8");pg.addColorStop(.5,"#55d58b");pg.addColorStop(1,"#ffd34e");
   ctx.fillStyle=pg;ctx.fillRect(W-96,H-76,84,5);
   ctx.fillStyle="#fff";ctx.textAlign="center";ctx.font="bold 12px system-ui,sans-serif";ctx.fillText("POTLI",W-54,H-55);
@@ -505,16 +504,10 @@ function render() {
 
     // Keep the celebration unobstructed: no opaque result card.
     ctx.globalAlpha = 1;
-    ctx.fillStyle = "#fff5d2";
-    ctx.shadowColor = "rgba(77,39,14,0.9)";
-    ctx.shadowBlur = 7;
-    ctx.font = "bold " + Math.min(25, W * 0.059) + "px system-ui, sans-serif";
-    ctx.fillText("LEVEL "+level+" CLEARED!", cx, cy - 39);
-    ctx.font = "bold 23px system-ui, sans-serif";
-    ctx.fillText(completedShots + (completedShots === 1 ? " SHOT" : " SHOTS"), cx, cy + 1);
-    ctx.font = "600 14px system-ui, sans-serif";
-    ctx.fillText(level===105?"ALL 105 LEVELS COMPLETE!":"NEXT LEVEL UNLOCKED!", cx, cy + 39);
-    ctx.shadowBlur = 0;
+    ctx.shadowBlur=0;
+    labelBox("LEVEL "+level+" CLEARED!",cx,cy-42,"bold "+Math.min(24,W*.057)+"px system-ui, sans-serif","#087f5b",16,38);
+    labelBox(completedShots+(completedShots===1?" SHOT":" SHOTS"),cx,cy+2,"bold 19px system-ui, sans-serif","#1597c4",15,32);
+    labelBox(level===105?"ALL 105 LEVELS COMPLETE!":"NEXT LEVEL UNLOCKED!",cx,cy+41,"bold 12px system-ui, sans-serif","#6c4bd3",13,27);
   }
   drawCollectionBook();
   if(levelPicker){
