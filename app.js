@@ -1,14 +1,12 @@
 "use strict";
-// KANCHEY — Three-distance aim test. Physics unchanged; no production assets or PWA caching.
+// KANCHEY — Three-target challenge. Approved launch physics unchanged.
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d", { alpha: false });
 let W = 0, H = 0, dpr = 1, scale = 1;
-let shooter, target, drag = null, mode = "ready", shotTime = 0, restTime = 0;
+let shooter, targets = [], drag = null, mode = "ready", shotTime = 0, restTime = 0;
 let impactFlash = 0, audio = null, lastFrame = 0;
 let shots = 0, hits = 0, shotHit = false, resultText = "", resultAge = 0;
-const DISTANCES = [0.59, 0.48, 0.365];
-const DISTANCE_NAMES = ["NEAR", "MEDIUM", "FAR"];
-let distanceIndex = 0, distanceShots = 0;
+let cleared = 0, roundShots = 0, rounds = 1;
 const MAX_PULL = 190;
 const FRICTION = 1.45; // gentler rolling resistance so deliberate soft shots can reach
 const RESTITUTION = 0.86;
@@ -20,7 +18,12 @@ function makeMarble(x, y, r, mass, color) {
 function reset() {
   const r = clamp(Math.min(W, H) * 0.046, 13, 22);
   shooter = makeMarble(W * 0.5, H * 0.74, r, 1.12, "#1b71d2");
-  target = makeMarble(W * 0.5, H * DISTANCES[distanceIndex], r * 0.95, 1, "#e8bf68");
+  targets = [
+    makeMarble(W * 0.5, H * 0.365, r * 0.95, 1, "#e8bf68"),
+    makeMarble(W * 0.28, H * 0.49, r * 0.95, 1, "#e8bf68"),
+    makeMarble(W * 0.72, H * 0.49, r * 0.95, 1, "#e8bf68")
+  ];
+  cleared = 0; roundShots = 0;
   drag = null; mode = "ready"; shotTime = 0; restTime = 0; impactFlash = 0;
 }
 function resize() {
@@ -92,14 +95,16 @@ function release(e, cancelled = false) {
   const power = pull / MAX_PULL;
   // Calibrate travel to the actual shooter-to-target gap on this screen.
   // At gentle pulls the marble barely reaches; stronger pulls retain momentum on impact.
-  const targetGap = Math.max(1, Math.hypot(target.x - shooter.x, target.y - shooter.y) - shooter.r - target.r);
+  // Use the approved FAR-target calibration as a fixed baseline for all angles.
+  const far = targets[0];
+  const targetGap = Math.max(1, Math.hypot(far.x - shooter.x, far.y - shooter.y) - shooter.r - far.r);
   const reachSpeed = FRICTION * (targetGap + 12);
   const speed = reachSpeed * (1.04 + 1.22 * Math.pow(power, 1.4));
   const norm = Math.hypot(dx, dy) || 1;
   shooter.vx = (dx / norm) * speed;
   shooter.vy = (dy / norm) * speed;
   mode = "moving"; shotTime = 0; restTime = 0;
-  shots++; distanceShots++; shotHit = false; resultText = ""; resultAge = 0;
+  shots++; roundShots++; shotHit = false; resultText = ""; resultAge = 0;
   e.preventDefault();
 }
 canvas.addEventListener("pointerup", e => release(e));
@@ -112,7 +117,7 @@ function wall(ball) {
   if (ball.y < pad + 38) { ball.y = pad + 38; ball.vy = Math.abs(ball.vy) * EDGE_BOUNCE; }
   if (ball.y > H - pad) { ball.y = H - pad; ball.vy = -Math.abs(ball.vy) * EDGE_BOUNCE; }
 }
-function collide(a, b) {
+function collide(a, b, scoreHit = false) {
   let dx = b.x - a.x, dy = b.y - a.y;
   let distance = Math.hypot(dx, dy);
   const minimum = a.r + b.r;
@@ -133,7 +138,10 @@ function collide(a, b) {
   const strength = clamp(-approach / 440, 0, 1);
   clickSound(strength);
   impactFlash = 0.16;
-  if (!shotHit) { shotHit = true; hits++; resultText = "HIT!"; resultAge = 0; }
+  if (scoreHit && !b.cleared) {
+    b.cleared = true; cleared++; hits++; shotHit = true;
+    resultText = cleared === 3 ? "ALL THREE!" : "HIT!"; resultAge = 0;
+  }
 }
 function update(dt) {
   impactFlash = Math.max(0, impactFlash - dt);
@@ -144,22 +152,31 @@ function update(dt) {
   const steps = Math.max(1, Math.ceil(dt / (1 / 120)));
   const step = dt / steps;
   for (let i = 0; i < steps; i++) {
-    for (const b of [shooter, target]) {
+    for (const b of [shooter, ...targets.filter(t => !t.cleared)]) {
       b.x += b.vx * step; b.y += b.vy * step;
       const decay = Math.exp(-FRICTION * step);
       b.vx *= decay; b.vy *= decay;
       wall(b);
     }
-    collide(shooter, target);
+    for (const t of targets) if (!t.cleared) collide(shooter, t, true);
+    for (let a = 0; a < targets.length; a++)
+      for (let b = a + 1; b < targets.length; b++)
+        if (!targets[a].cleared && !targets[b].cleared) collide(targets[a], targets[b], false);
   }
-  const stopped = [shooter, target].every(b => Math.hypot(b.vx, b.vy) < 11);
+  const stopped = [shooter, ...targets.filter(t => !t.cleared)].every(b => Math.hypot(b.vx, b.vy) < 11);
   if (stopped) restTime += dt;
   else restTime = 0;
   if ((restTime > 0.65 && shotTime > 0.75) || shotTime > 7) {
     if (!shotHit) { resultText = "MISS"; resultAge = 0; }
-    // Four attempts per distance, then automatically advance to the next range.
-    if (distanceShots >= 4) { distanceShots = 0; distanceIndex = (distanceIndex + 1) % DISTANCES.length; }
-    reset();
+    // Keep cleared targets out of subsequent shots; restart the shooter only.
+    if (cleared === 3) {
+      rounds++; reset();
+    } else {
+      const r = shooter.r;
+      shooter = makeMarble(W * 0.5, H * 0.74, r, 1.12, "#1b71d2");
+      for (const t of targets) { t.vx = 0; t.vy = 0; }
+      mode = "ready"; shotTime = 0; restTime = 0; impactFlash = 0;
+    }
   }
 }
 function drawBall(b) {
@@ -184,7 +201,7 @@ function render() {
   ctx.font = "600 17px system-ui, sans-serif";
   ctx.fillText("HITS " + hits + " / " + shots, W / 2, Math.max(63, H * 0.14));
   ctx.font = "600 14px system-ui, sans-serif";
-  ctx.fillText(DISTANCE_NAMES[distanceIndex] + " TARGET  •  SHOT " + (distanceShots + 1) + "/4", W / 2, Math.max(87, H * 0.18));
+  ctx.fillText("ROUND " + rounds + "  •  CLEARED " + cleared + "/3  •  SHOTS " + roundShots, W / 2, Math.max(87, H * 0.18));
   if (resultText && resultAge < 1.2) {
     ctx.font = "bold 26px system-ui, sans-serif";
     ctx.fillStyle = resultText === "HIT!" ? "#f7e9b1" : "#55361f";
@@ -192,8 +209,11 @@ function render() {
     ctx.fillStyle = "#55361f";
   }
   ctx.letterSpacing = "0px";
-  ctx.beginPath(); ctx.arc(target.x, target.y, target.r + 20, 0, Math.PI * 2);
-  ctx.strokeStyle = "rgba(91,58,31,.48)"; ctx.lineWidth = 1.5; ctx.stroke();
+  for (const t of targets) {
+    if (t.cleared) continue;
+    ctx.beginPath(); ctx.arc(t.x, t.y, t.r + 20, 0, Math.PI * 2);
+    ctx.strokeStyle = "rgba(91,58,31,.48)"; ctx.lineWidth = 1.5; ctx.stroke();
+  }
   if (drag) {
     const dx = shooter.x - drag.x, dy = shooter.y - drag.y;
     const raw = Math.hypot(dx, dy);
@@ -209,11 +229,15 @@ function render() {
       ctx.strokeStyle = "rgba(255,255,255,.36)"; ctx.lineWidth = 2; ctx.stroke();
     }
   }
-  drawBall(target); drawBall(shooter);
+  for (const t of targets) if (!t.cleared) drawBall(t);
+  drawBall(shooter);
   if (impactFlash > 0) {
-    ctx.beginPath(); ctx.arc(target.x, target.y, target.r + (0.16 - impactFlash) * 90, 0, Math.PI * 2);
-    ctx.strokeStyle = "rgba(255,255,255," + (impactFlash / 0.16 * 0.8) + ")";
-    ctx.lineWidth = 2; ctx.stroke();
+    for (const t of targets) {
+      if (!t.cleared) continue;
+      ctx.beginPath(); ctx.arc(t.x, t.y, t.r + (0.16 - impactFlash) * 90, 0, Math.PI * 2);
+      ctx.strokeStyle = "rgba(255,255,255," + (impactFlash / 0.16 * 0.8) + ")";
+      ctx.lineWidth = 2; ctx.stroke();
+    }
   }
 }
 function loop(time) {
