@@ -1,10 +1,11 @@
 "use strict";
-// KANCHEY — V1 cultural-mechanic prototype: catapult launch, hop/land, persistent lie.
+// KANCHEY — V1: three-target power-control prototype with short hop and fresh shooting lie.
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d", { alpha: false });
 let W = 0, H = 0, dpr = 1, scale = 1;
 let shooter, targets = [], drag = null, mode = "ready", shotTime = 0, restTime = 0;
 let hopZ = 0, hopV = 0, landedOnce = false;
+let lastSpawnX = 0;
 let impactFlash = 0, audio = null, lastFrame = 0;
 let shots = 0, hits = 0, shotHit = false, resultText = "", resultAge = 0;
 let cleared = 0, roundShots = 0, rounds = 1;
@@ -28,6 +29,22 @@ function reset() {
   cleared = 0; roundShots = 0;
   drag = null; mode = "ready"; shotTime = 0; restTime = 0; impactFlash = 0;
   hopZ = 0; hopV = 0; landedOnce = false;
+  lastSpawnX = shooter.x;
+}
+function placeShooterChallenge() {
+  const margin = Math.max(shooter.r * 3.1, W * 0.12);
+  const minY = Math.max(H * 0.61, H * 0.5 + shooter.r * 3);
+  const maxY = H - Math.max(shooter.r * 3.4, H * 0.10);
+  let bestX = W * 0.5, bestY = H * 0.76, bestScore = -1;
+  for (let i = 0; i < 18; i++) {
+    const x = margin + Math.random() * Math.max(1, W - margin * 2);
+    const y = minY + Math.random() * Math.max(1, maxY - minY);
+    const nearest = Math.min(...targets.filter(t=>!t.cleared).map(t=>Math.hypot(t.x-x,t.y-y)));
+    const sideChange = Math.abs(x-lastSpawnX);
+    const score = nearest + sideChange * 0.42;
+    if (score > bestScore) { bestScore=score; bestX=x; bestY=y; }
+  }
+  shooter.x=bestX; shooter.y=bestY; shooter.vx=0; shooter.vy=0; lastSpawnX=bestX;
 }
 function resize() {
   const oldW = W, oldH = H;
@@ -107,7 +124,8 @@ function release(e, cancelled = false) {
   shooter.vx = (dx / norm) * speed;
   shooter.vy = (dy / norm) * speed;
   mode = "moving"; shotTime = 0; restTime = 0;
-  hopZ = 0; hopV = 155 + 125 * power; landedOnce = false;
+  // A short snap-hop only: visual lift, not a long airborne arc.
+  hopZ = 0; hopV = 72 + 48 * power; landedOnce = false;
   shots++; roundShots++; shotHit = false; resultText = ""; resultAge = 0;
   e.preventDefault();
 }
@@ -157,7 +175,7 @@ function update(dt) {
   }
   if (mode !== "moving") return;
   shotTime += dt;
-  hopV -= 760 * dt; hopZ += hopV * dt;
+  hopV -= 980 * dt; hopZ += hopV * dt;
   if (hopZ <= 0) { hopZ = 0; if (!landedOnce && hopV < 0) { landedOnce = true; hopV = 0; } }
   // Substeps reduce tunnelling on small screens and strong flicks.
   const steps = Math.max(1, Math.ceil(dt / (1 / 120)));
@@ -188,9 +206,9 @@ function update(dt) {
       mode = "celebrating";
       resultText = ""; resultAge = 0;
     } else {
-      // Traditional continuation: the next strike starts exactly where the shooter stopped.
-      shooter.vx = 0; shooter.vy = 0;
+      // Fresh challenge after every resolved shot: relocate within a safe bottom-half zone.
       for (const t of targets) { t.vx = 0; t.vy = 0; }
+      placeShooterChallenge();
       mode = "ready"; shotTime = 0; restTime = 0; impactFlash = 0;
       hopZ = 0; hopV = 0; landedOnce = false;
     }
@@ -233,6 +251,14 @@ function render() {
     ctx.fillStyle = "#55361f";
   }
   ctx.letterSpacing = "0px";
+  // ENERGY bar: pull strength is visible before release.
+  const barW = Math.min(W * 0.62, 250), barH = 11, barX = (W-barW)/2, barY = Math.max(126, H*0.245);
+  const energy = drag ? clamp(Math.hypot(shooter.x-drag.x,shooter.y-drag.y)/MAX_PULL,0,1) : 0;
+  ctx.fillStyle="rgba(74,45,25,.22)"; ctx.fillRect(barX,barY,barW,barH);
+  if (energy>0) { ctx.fillStyle="#f0cf65"; ctx.fillRect(barX,barY,barW*energy,barH); }
+  ctx.strokeStyle="rgba(74,45,25,.58)"; ctx.lineWidth=1.5; ctx.strokeRect(barX,barY,barW,barH);
+  ctx.fillStyle="#55361f"; ctx.font="700 10px system-ui, sans-serif";
+  ctx.fillText("ENERGY  "+Math.round(energy*100)+"%",W/2,barY-10);
   for (const t of targets) {
     if (t.cleared) continue;
     ctx.beginPath(); ctx.arc(t.x, t.y, t.r + 20, 0, Math.PI * 2);
