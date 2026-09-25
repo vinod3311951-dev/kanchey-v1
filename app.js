@@ -6,7 +6,7 @@ let W = 0, H = 0, dpr = 1, scale = 1;
 let shooter, target, drag = null, mode = "ready", shotTime = 0, restTime = 0;
 let impactFlash = 0, audio = null, lastFrame = 0;
 const MAX_PULL = 190;
-const FRICTION = 2.55; // exponential rolling resistance, tuned for a 2–3 s shot
+const FRICTION = 1.45; // gentler rolling resistance so deliberate soft shots can reach
 const RESTITUTION = 0.86;
 const EDGE_BOUNCE = 0.42;
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -86,11 +86,11 @@ function release(e, cancelled = false) {
   drag = null;
   if (cancelled || pull < 8) return;
   const power = pull / MAX_PULL;
-  // Lift gentle pulls while preserving the existing strong/full launch speeds.
-  // The bump fades to zero by 65% pull and keeps speed increasing throughout.
-  const softBand = Math.min(power / 0.65, 1);
-  const softBoost = 110 * Math.pow(Math.sin(Math.PI * softBand), 2);
-  const speed = 72 + 610 * Math.pow(power, 1.08) + softBoost;
+  // Calibrate travel to the actual shooter-to-target gap on this screen.
+  // At gentle pulls the marble barely reaches; stronger pulls retain momentum on impact.
+  const targetGap = Math.max(1, Math.hypot(target.x - shooter.x, target.y - shooter.y) - shooter.r - target.r);
+  const reachSpeed = FRICTION * (targetGap + 12);
+  const speed = reachSpeed * (1.04 + 1.22 * Math.pow(power, 1.4));
   const norm = Math.hypot(dx, dy) || 1;
   shooter.vx = (dx / norm) * speed;
   shooter.vy = (dy / norm) * speed;
