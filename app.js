@@ -1,5 +1,5 @@
 "use strict";
-// KANCHEY — V1: three-target power-control prototype with short hop and fresh shooting lie.
+// KANCHEY — flat-ground glass-marble game: black striker rolls only; no hop.
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d", { alpha: false });
 let W = 0, H = 0, dpr = 1, scale = 1;
@@ -89,7 +89,7 @@ function unlockAudio() {
 function setupMusic(){
   if(!audio)return;
   if(!musicGain){musicGain=audio.createGain();musicGain.gain.value=0;musicGain.connect(audio.destination);}
-  musicGain.gain.setTargetAtTime(musicOn?.022:0,audio.currentTime,.15);
+  musicGain.gain.setTargetAtTime(musicOn?.055:0,audio.currentTime,.15);
   if(musicOn)musicNext=audio.currentTime+.08;
 }
 function updateMusic(){
@@ -124,8 +124,12 @@ function spawnCoins(x,y) {
   rewardSound(0);
 }
 function spawnLevelBurst() {
-  const colors=["#00a7c7","#087f5b","#6c4bd3","#ff8a3d","#e83e6f","#16a085"];
-  for(let i=0;i<90;i++)levelBurst.push({x:W/2+(Math.random()-.5)*W*.32,y:H*.48,vx:(Math.random()-.5)*360,vy:-125-Math.random()*300,age:0,color:colors[i%4],spin:Math.random()*6.28});
+  const colors=["#00a7c7","#087f5b","#6c4bd3","#ff8a3d","#e83e6f","#ffd43b"];
+  // 🎉-style full-screen confetti cannon from both lower corners.
+  for(let i=0;i<150;i++){
+    const left=i%2===0;
+    levelBurst.push({x:left?18:W-18,y:H*.72+Math.random()*40,vx:(left?1:-1)*(70+Math.random()*310),vy:-210-Math.random()*430,age:0,color:colors[i%colors.length],spin:Math.random()*6.28,rect:i%3!==0});
+  }
   rewardSound(1);
 }
 function updateFX(dt){
@@ -144,7 +148,7 @@ function drawFX(){
   for(const p of levelBurst){
     ctx.globalAlpha=clamp(1-p.age/2.3,0,1);ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.spin);
     const g=ctx.createLinearGradient(-8,-8,8,8);g.addColorStop(0,"#fff");g.addColorStop(.28,p.color);g.addColorStop(.72,p.color);g.addColorStop(1,"#333");
-    ctx.fillStyle=g;ctx.beginPath();ctx.arc(0,0,7,0,Math.PI*2);ctx.fill();ctx.restore();
+    ctx.fillStyle=g;ctx.beginPath();if(p.rect)ctx.rect(-6,-3,12,6);else ctx.arc(0,0,6,0,Math.PI*2);ctx.fill();ctx.restore();
   }
   ctx.restore();
 }
@@ -215,7 +219,7 @@ function release(e, cancelled = false) {
   shooter.vx = (dx / norm) * speed;
   shooter.vy = (dy / norm) * speed;
   mode = "moving"; shotTime = 0; restTime = 0;
-  // A short snap-hop only: visual lift, not a long airborne arc.
+  // Ground roll only — black striker must never hop.
   hopZ = 0; hopV = 0; landedOnce = true; postFlick = 0.48;
   shots++; roundShots++; shotHit = false; resultText = ""; resultAge = 0;
   e.preventDefault();
@@ -416,10 +420,10 @@ function drawBall(b) {
   ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,Math.PI*2);ctx.strokeStyle="rgba(50,70,75,.38)";ctx.lineWidth=1.2;ctx.stroke();
   ctx.restore();
 }
-function labelBox(text,cx,cy,font="600 13px system-ui, sans-serif",fill="#087f5b",padX=12,h=27){
+function labelBox(text,cx,cy,font="600 13px system-ui, sans-serif",fill="#e8ecee",padX=12,h=27,textColor="#111820"){
   ctx.save();ctx.font=font;const w=Math.min(W-20,ctx.measureText(text).width+padX*2);
   ctx.fillStyle=fill;ctx.fillRect(cx-w/2,cy-h/2,w,h);
-  ctx.fillStyle="#fff";ctx.textAlign="center";ctx.textBaseline="middle";ctx.font=font;ctx.fillText(text,cx,cy+1);ctx.restore();
+  ctx.fillStyle=textColor;ctx.textAlign="center";ctx.textBaseline="middle";ctx.font=font;ctx.fillText(text,cx,cy+1);ctx.restore();
 }
 function render() {
   ctx.fillStyle = "#fbfcfd"; ctx.fillRect(0, 0, W, H);
@@ -428,12 +432,12 @@ function render() {
   tableGlow.addColorStop(0,"rgba(222,237,240,.20)");tableGlow.addColorStop(1,"rgba(255,255,255,0)");ctx.fillStyle=tableGlow;ctx.fillRect(0,0,W,H);
   ctx.textAlign="center";ctx.textBaseline="middle";ctx.letterSpacing="0px";
   const chapterName=CHAPTERS[Math.floor((level-1)/15)].toUpperCase();
-  labelBox("KANCHEY  •  "+chapterName,W/2,Math.max(35,H*.09),"600 12px system-ui, sans-serif","#087f5b",13,28);
-  labelBox("LEVELS",48,43,"bold 11px system-ui, sans-serif","#1597c4",10,25);
-  labelBox(musicOn?"♫ ON":"♫ OFF",W-48,43,"bold 11px system-ui, sans-serif",musicOn?"#087f5b":"#1597c4",10,25);
-  labelBox("HITS "+hits+" / "+shots,W/2,Math.max(68,H*.14),"600 16px system-ui, sans-serif","#1597c4",15,30);
-  labelBox("LEVEL "+level+"/105  •  CLEARED "+cleared+"/3  •  SHOTS "+roundShots,W/2,Math.max(101,H*.18),"600 12px system-ui, sans-serif","#087f5b",10,27);
-  labelBox("BEST "+(bestShots===null?"—":bestShots+" SHOTS"),W/2,Math.max(132,H*.215),"600 12px system-ui, sans-serif","#1597c4",12,26);
+  labelBox("KANCHEY  •  "+chapterName,W/2,Math.max(35,H*.09),"600 12px system-ui, sans-serif","#e8ecee",13,28);
+  labelBox("LEVELS",48,43,"bold 11px system-ui, sans-serif","#1597c4",10,25,"#fff");
+  labelBox(musicOn?"♫ ON":"♫ OFF",W-48,43,"bold 11px system-ui, sans-serif","#e8ecee",10,25);
+  labelBox("HITS "+hits+" / "+shots,W/2,Math.max(68,H*.14),"600 16px system-ui, sans-serif","#e8ecee",15,30);
+  labelBox("LEVEL "+level+"/105  •  CLEARED "+cleared+"/3  •  SHOTS "+roundShots,W/2,Math.max(101,H*.18),"600 12px system-ui, sans-serif","#e8ecee",10,27);
+  labelBox("BEST "+(bestShots===null?"—":bestShots+" SHOTS"),W/2,Math.max(132,H*.215),"600 12px system-ui, sans-serif","#e8ecee",12,26);
   if (resultText && resultAge < 1.2) {
     ctx.font = "bold 26px system-ui, sans-serif";
     ctx.fillStyle = resultText === "HIT!" ? "#f7e9b1" : "#55361f";
@@ -447,7 +451,7 @@ function render() {
   ctx.fillStyle="rgba(42,63,68,.12)"; ctx.fillRect(barX,barY,barW,barH);
   if (energy>0) { const eg=ctx.createLinearGradient(barX,0,barX+barW,0);eg.addColorStop(0,"#43b6e8");eg.addColorStop(.5,"#4bd08a");eg.addColorStop(1,"#ffd64a");ctx.fillStyle=eg;ctx.fillRect(barX,barY,barW*energy,barH); }
   ctx.strokeStyle="rgba(42,63,68,.42)"; ctx.lineWidth=1.5; ctx.strokeRect(barX,barY,barW,barH);
-  labelBox("ENERGY  "+Math.round(energy*100)+"%",W/2,barY-12,"700 10px system-ui, sans-serif","#087f5b",10,22);
+  labelBox("ENERGY  "+Math.round(energy*100)+"%",W/2,barY-12,"700 10px system-ui, sans-serif","#e8ecee",10,22);
   for (const t of targets) {
     if (t.cleared) continue;
     ctx.beginPath(); ctx.arc(t.x, t.y, t.r + 20, 0, Math.PI * 2);
@@ -505,9 +509,9 @@ function render() {
     // Keep the celebration unobstructed: no opaque result card.
     ctx.globalAlpha = 1;
     ctx.shadowBlur=0;
-    labelBox("LEVEL "+level+" CLEARED!",cx,cy-42,"bold "+Math.min(24,W*.057)+"px system-ui, sans-serif","#087f5b",16,38);
-    labelBox(completedShots+(completedShots===1?" SHOT":" SHOTS"),cx,cy+2,"bold 19px system-ui, sans-serif","#1597c4",15,32);
-    labelBox(level===105?"ALL 105 LEVELS COMPLETE!":"NEXT LEVEL UNLOCKED!",cx,cy+41,"bold 12px system-ui, sans-serif","#6c4bd3",13,27);
+    labelBox("LEVEL "+level+" CLEARED!",cx,cy-42,"bold "+Math.min(24,W*.057)+"px system-ui, sans-serif","#e8ecee",16,38);
+    labelBox(completedShots+(completedShots===1?" SHOT":" SHOTS"),cx,cy+2,"bold 19px system-ui, sans-serif","#e8ecee",15,32);
+    labelBox(level===105?"ALL 105 LEVELS COMPLETE!":"NEXT LEVEL UNLOCKED!",cx,cy+41,"bold 12px system-ui, sans-serif","#e8ecee",13,27);
   }
   drawCollectionBook();
   if(levelPicker){
