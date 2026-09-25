@@ -16,7 +16,7 @@ let cleared = 0, roundShots = 0, rounds = 1;
 let bestShots = null, completedShots = 0, celebrationAge = 0;
 const CHAPTERS=["First Flick","Glass Garden","Crossfire","Long Shot","Tricky Angles","Master's Yard","Kancha Dominion"];
 const TOTAL_LEVELS=105;
-let level=1, levelPicker=false, musicOn=true, musicGain=null, musicNext=0, musicStep=0;
+let level=1, levelPicker=false, musicOn=true, musicGain=null, musicNext=0, musicStep=0, musicStarted=false;
 const bestByLevel=Array(TOTAL_LEVELS).fill(null);
 const clampLevel=n=>Math.max(1,Math.min(TOTAL_LEVELS,n));
 const MAX_PULL = 190;
@@ -91,21 +91,22 @@ function setupMusic(){
   if(!audio)return;
   if(!musicGain){musicGain=audio.createGain();musicGain.gain.value=0;musicGain.connect(audio.destination);}
   musicGain.gain.cancelScheduledValues(audio.currentTime);
-  musicGain.gain.setTargetAtTime(musicOn?.18:0,audio.currentTime,.08);
-  if(musicOn && musicNext<audio.currentTime)musicNext=audio.currentTime+.04;
+  musicGain.gain.setTargetAtTime(musicOn?.22:0,audio.currentTime,.05);
+  if(musicOn&&!musicStarted){musicStarted=true;musicNext=audio.currentTime+.03;}
 }
 function updateMusic(){
   if(!musicOn||!audio||!musicGain||audio.state!=="running")return;
-  // Original, generated-in-code quiet pentatonic ambience: no third-party samples or recording.
-  const notes=[196,246.94,293.66,329.63,392,329.63,293.66,246.94,220,261.63,329.63,392,329.63,261.63,220,196];
-  while(musicNext<audio.currentTime+.20){
-    const start=Math.max(musicNext,audio.currentTime+.01),freq=notes[musicStep%notes.length];
-    const osc=audio.createOscillator(),env=audio.createGain();
-    osc.type="sine";osc.frequency.setValueAtTime(freq,start);
-    env.gain.setValueAtTime(.0001,start);env.gain.exponentialRampToValueAtTime(.28,start+.13);
-    env.gain.exponentialRampToValueAtTime(.0001,start+1.6);
-    osc.connect(env).connect(musicGain);osc.start(start);osc.stop(start+1.65);
-    musicStep++;musicNext=start+.65;
+  const melody=[261.63,329.63,392,329.63,293.66,349.23,440,349.23,246.94,293.66,392,293.66,220,261.63,329.63,261.63];
+  while(musicNext<audio.currentTime+.35){
+    const start=Math.max(musicNext,audio.currentTime+.01),freq=melody[musicStep%melody.length];
+    const o=audio.createOscillator(),g=audio.createGain(),o2=audio.createOscillator(),g2=audio.createGain();
+    o.type="triangle";o.frequency.setValueAtTime(freq,start);
+    o2.type="sine";o2.frequency.setValueAtTime(freq/2,start);
+    g.gain.setValueAtTime(.0001,start);g.gain.exponentialRampToValueAtTime(.24,start+.06);g.gain.exponentialRampToValueAtTime(.0001,start+.78);
+    g2.gain.setValueAtTime(.0001,start);g2.gain.exponentialRampToValueAtTime(.08,start+.08);g2.gain.exponentialRampToValueAtTime(.0001,start+.9);
+    o.connect(g).connect(musicGain);o2.connect(g2).connect(musicGain);
+    o.start(start);o.stop(start+.82);o2.start(start);o2.stop(start+.92);
+    musicStep++;musicNext=start+.48;
   }
 }
 function rewardSound(kind=0) {
@@ -182,7 +183,7 @@ canvas.addEventListener("pointerdown", e => {
   if(collectionOpen){collectionOpen=false;e.preventDefault();return;}
   if (p.x > W-116 && p.y > H-112) {collectionOpen=true;e.preventDefault();return;}
   if(p.y<76 && p.x<105){levelPicker=!levelPicker;e.preventDefault();return;}
-  if(p.y<76 && p.x>W-105){musicOn=!musicOn;unlockAudio();e.preventDefault();return;}
+  if(p.y<76 && p.x>W-105){musicOn=!musicOn;if(musicOn)musicStarted=false;unlockAudio();setupMusic();e.preventDefault();return;}
   if(levelPicker){
     const top=H*.18,cellW=(W-24)/5,cellH=Math.min(42,H*.72/21);
     const col=Math.floor((p.x-12)/cellW),row=Math.floor((p.y-top)/cellH);
@@ -294,21 +295,23 @@ function updateReward(dt) {
 }
 function drawHandPose(alpha) {
   if(alpha<=0)return;
-  const sx=shooter.x,sy=shooter.y;
-  const tension=drag?clamp(Math.hypot(sx-drag.x,sy-drag.y)/MAX_PULL,0,1):0;
-  ctx.save();ctx.globalAlpha=alpha;
-  ctx.fillStyle="#81502f";ctx.strokeStyle="#4c2d1b";ctx.lineWidth=2;
-  // Broad palm silhouettes with thumb and forefinger kept anatomically compact.
-  ctx.beginPath();ctx.ellipse(sx-27,sy+35,26,19,-0.3,0,Math.PI*2);ctx.fill();ctx.stroke();
-  ctx.strokeStyle="#81502f";ctx.lineWidth=12;ctx.lineCap="round";
-  ctx.beginPath();ctx.moveTo(sx-35,sy+34);ctx.lineTo(sx-51,sy+44);ctx.stroke();
-  ctx.beginPath();ctx.moveTo(sx-16,sy+27);ctx.lineTo(sx-6,sy+7);ctx.stroke();
-  const rx=sx+38+tension*9,ry=sy+38+tension*4;
-  ctx.fillStyle="#95613e";ctx.strokeStyle="#59351f";ctx.lineWidth=2;
-  ctx.beginPath();ctx.ellipse(rx,ry,24,18,0.25,0,Math.PI*2);ctx.fill();ctx.stroke();
-  ctx.strokeStyle="#95613e";ctx.lineWidth=10;
-  ctx.beginPath();ctx.moveTo(rx-13,ry-7);ctx.lineTo(sx+3,sy+10);ctx.stroke();
-  ctx.beginPath();ctx.moveTo(rx-12,ry+4);ctx.lineTo(sx+6,sy+15);ctx.stroke();
+  const sx=shooter.x,sy=shooter.y,tension=drag?clamp(Math.hypot(sx-drag.x,sy-drag.y)/MAX_PULL,0,1):0;
+  ctx.save();ctx.globalAlpha=alpha;ctx.lineCap="round";ctx.lineJoin="round";
+  // Two clearly hand-like silhouettes: palms sit lower; fingers point toward the striker.
+  const skin="#a96f49",edge="#70452d";
+  ctx.fillStyle=skin;ctx.strokeStyle=edge;ctx.lineWidth=2;
+  ctx.beginPath();ctx.ellipse(sx-42,sy+45,28,20,-.18,0,Math.PI*2);ctx.fill();ctx.stroke();
+  ctx.beginPath();ctx.ellipse(sx+44,sy+46,28,20,.18,0,Math.PI*2);ctx.fill();ctx.stroke();
+  ctx.strokeStyle=skin;ctx.lineWidth=11;
+  // left index + thumb
+  ctx.beginPath();ctx.moveTo(sx-48,sy+35);ctx.lineTo(sx-25,sy+18);ctx.lineTo(sx-10,sy+10);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(sx-29,sy+48);ctx.lineTo(sx-15,sy+28);ctx.stroke();
+  // right index + thumb, opening slightly under pull
+  ctx.beginPath();ctx.moveTo(sx+51,sy+36);ctx.lineTo(sx+28+tension*5,sy+18);ctx.lineTo(sx+11,sy+10);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(sx+31,sy+49);ctx.lineTo(sx+16,sy+28);ctx.stroke();
+  // small finger separation marks make the forms read as hands rather than ovals
+  ctx.strokeStyle="rgba(92,54,35,.55)";ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(sx-56,sy+42);ctx.lineTo(sx-39,sy+34);ctx.moveTo(sx+57,sy+43);ctx.lineTo(sx+40,sy+34);ctx.stroke();
   ctx.restore();
 }
 function drawReward() {
