@@ -1,10 +1,11 @@
 "use strict";
-// KANCHEY — Hour 1. Intentionally no assets, levels, service worker or manifest.
+// KANCHEY — Hour 2 gameplay-loop test. Physics frozen; no production assets or PWA caching.
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d", { alpha: false });
 let W = 0, H = 0, dpr = 1, scale = 1;
 let shooter, target, drag = null, mode = "ready", shotTime = 0, restTime = 0;
 let impactFlash = 0, audio = null, lastFrame = 0;
+let shots = 0, hits = 0, shotHit = false, resultText = "", resultAge = 0;
 const MAX_PULL = 190;
 const FRICTION = 1.45; // gentler rolling resistance so deliberate soft shots can reach
 const RESTITUTION = 0.86;
@@ -95,6 +96,7 @@ function release(e, cancelled = false) {
   shooter.vx = (dx / norm) * speed;
   shooter.vy = (dy / norm) * speed;
   mode = "moving"; shotTime = 0; restTime = 0;
+  shots++; shotHit = false; resultText = ""; resultAge = 0;
   e.preventDefault();
 }
 canvas.addEventListener("pointerup", e => release(e));
@@ -128,9 +130,11 @@ function collide(a, b) {
   const strength = clamp(-approach / 440, 0, 1);
   clickSound(strength);
   impactFlash = 0.16;
+  if (!shotHit) { shotHit = true; hits++; resultText = "HIT!"; resultAge = 0; }
 }
 function update(dt) {
   impactFlash = Math.max(0, impactFlash - dt);
+  if (resultText) resultAge += dt;
   if (mode !== "moving") return;
   shotTime += dt;
   // Substeps reduce tunnelling on small screens and strong flicks.
@@ -148,7 +152,10 @@ function update(dt) {
   const stopped = [shooter, target].every(b => Math.hypot(b.vx, b.vy) < 11);
   if (stopped) restTime += dt;
   else restTime = 0;
-  if ((restTime > 0.65 && shotTime > 0.75) || shotTime > 7) reset();
+  if ((restTime > 0.65 && shotTime > 0.75) || shotTime > 7) {
+    if (!shotHit) { resultText = "MISS"; resultAge = 0; }
+    reset();
+  }
 }
 function drawBall(b) {
   // Procedural Canvas shading only. No production artwork.
@@ -168,7 +175,15 @@ function render() {
   ctx.fillStyle = "#55361f";
   ctx.font = "600 12px system-ui, sans-serif";
   ctx.letterSpacing = "1.6px";
-  ctx.fillText("KANCHEY — FLICK TEST", W / 2, Math.max(35, H * 0.09));
+  ctx.fillText("KANCHEY — SHOT TEST", W / 2, Math.max(35, H * 0.09));
+  ctx.font = "600 17px system-ui, sans-serif";
+  ctx.fillText("HITS " + hits + " / " + shots, W / 2, Math.max(63, H * 0.14));
+  if (resultText && resultAge < 1.2) {
+    ctx.font = "bold 26px system-ui, sans-serif";
+    ctx.fillStyle = resultText === "HIT!" ? "#f7e9b1" : "#55361f";
+    ctx.fillText(resultText, W / 2, H * 0.54);
+    ctx.fillStyle = "#55361f";
+  }
   ctx.letterSpacing = "0px";
   ctx.beginPath(); ctx.arc(target.x, target.y, target.r + 20, 0, Math.PI * 2);
   ctx.strokeStyle = "rgba(91,58,31,.48)"; ctx.lineWidth = 1.5; ctx.stroke();
