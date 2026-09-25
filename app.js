@@ -5,6 +5,9 @@ const ctx = canvas.getContext("2d", { alpha: false });
 let W = 0, H = 0, dpr = 1, scale = 1;
 let shooter, targets = [], drag = null, mode = "ready", shotTime = 0, restTime = 0;
 let hopZ = 0, hopV = 0, landedOnce = false;
+let reward = null, collectionOpen = false, postFlick = 0;
+const collection = { coins:0, items:{}, total:0, rarest:"—", dailyDate:"" };
+const REWARDS = [{id:"coin",name:"Coins",rarity:0,color:"#f5cf56",weight:55},{id:"tiger",name:"Tiger-eye",rarity:1,color:"#c77d30",weight:13},{id:"blood",name:"Blood-red",rarity:1,color:"#a52e35",weight:11},{id:"seven",name:"Seven-colour",rarity:1,color:"#8b63cf",weight:9},{id:"moon",name:"Moon-white",rarity:1,color:"#e9f3e9",weight:7},{id:"kali",name:"Kali Bichhua",rarity:2,color:"#3b313a",weight:2},{id:"bhoora",name:"Bhoora",rarity:2,color:"#886443",weight:1},{id:"chandan",name:"Chandan",rarity:2,color:"#d7a878",weight:1},{id:"sona",name:"Sona Chandi",rarity:2,color:"#d7d1a5",weight:1}];
 let lastSpawnX = 0;
 let impactFlash = 0, audio = null, lastFrame = 0;
 let shots = 0, hits = 0, shotHit = false, resultText = "", resultAge = 0;
@@ -30,17 +33,19 @@ function reset() {
   drag = null; mode = "ready"; shotTime = 0; restTime = 0; impactFlash = 0;
   hopZ = 0; hopV = 0; landedOnce = false;
   lastSpawnX = shooter.x;
+  reward = null; postFlick = 0;
 }
 function placeShooterChallenge() {
-  const margin = Math.max(shooter.r * 3.1, W * 0.12);
+  const margin = Math.max(shooter.r * 3.1, W * 0.15);
   const minY = Math.max(H * 0.61, H * 0.5 + shooter.r * 3);
-  const maxY = H - Math.max(shooter.r * 3.4, H * 0.10);
+  const maxY = H - Math.max(shooter.r * 3.4, H * 0.15);
   let bestX = W * 0.5, bestY = H * 0.76, bestScore = -1;
   for (let i = 0; i < 18; i++) {
     const x = margin + Math.random() * Math.max(1, W - margin * 2);
     const y = minY + Math.random() * Math.max(1, maxY - minY);
     const nearest = Math.min(...targets.filter(t=>!t.cleared).map(t=>Math.hypot(t.x-x,t.y-y)));
     const sideChange = Math.abs(x-lastSpawnX);
+    if (nearest < shooter.r * 3.2) continue;
     const score = nearest + sideChange * 0.42;
     if (score > bestScore) { bestScore=score; bestX=x; bestY=y; }
   }
@@ -90,8 +95,10 @@ function clickSound(intensity) {
   } catch (_) { /* muted/unsupported audio must never break the game */ }
 }
 canvas.addEventListener("pointerdown", e => {
-  if (mode !== "ready") return;
   const p = position(e);
+  if (p.x > W-105 && p.y > H-100) {collectionOpen=!collectionOpen;e.preventDefault();return;}
+  if(collectionOpen){collectionOpen=false;e.preventDefault();return;}
+  if (mode !== "ready" || reward) return;
   const dist = Math.hypot(p.x - shooter.x, p.y - shooter.y);
   if (dist > Math.max(shooter.r * 2.4, 34)) return;
   unlockAudio();
@@ -125,7 +132,7 @@ function release(e, cancelled = false) {
   shooter.vy = (dy / norm) * speed;
   mode = "moving"; shotTime = 0; restTime = 0;
   // A short snap-hop only: visual lift, not a long airborne arc.
-  hopZ = 0; hopV = 72 + 48 * power; landedOnce = false;
+  hopZ = 0; hopV = 0; landedOnce = true; postFlick = 0.48;
   shots++; roundShots++; shotHit = false; resultText = ""; resultAge = 0;
   e.preventDefault();
 }
@@ -162,20 +169,109 @@ function collide(a, b, scoreHit = false) {
   impactFlash = 0.16;
   if (scoreHit && !b.cleared) {
     b.cleared = true; cleared++; hits++; shotHit = true;
+    spawnReward(b.x,b.y);
     resultText = cleared === 3 ? "ALL THREE!" : "HIT!"; resultAge = 0;
   }
 }
+function chooseReward() {
+  const today = new Date().toLocaleDateString("en-CA");
+  // One guaranteed daily collectible, never dependent on a lucky drop.
+  if (collection.dailyDate !== today) {
+    return {id:"daily",name:"Daily Marble",rarity:2,color:"#57c7b0"};
+  }
+  let roll=Math.random()*100;
+  for (const item of REWARDS) { roll-=item.weight; if(roll<0)return item; }
+  return REWARDS[0];
+}
+function spawnReward(x,y) {
+  if (reward) finishReward();
+  const item=chooseReward();
+  reward={item,x,y,fromX:x,fromY:y,age:0};
+}
+function finishReward() {
+  if(!reward)return;
+  const item=reward.item;
+  collection.total++;
+  if(item.id==="coin") collection.coins+=5;
+  else collection.items[item.id]=(collection.items[item.id]||0)+1;
+  if(item.id==="daily") collection.dailyDate=new Date().toLocaleDateString("en-CA");
+  if(item.rarity>=2)collection.rarest=item.name;
+  else if(item.rarity===1 && collection.rarest==="—")collection.rarest=item.name;
+  reward=null;
+}
+function updateReward(dt) {
+  if(!reward)return;
+  reward.age+=dt;
+  if(reward.age>=1.05){finishReward();return;}
+  const t=clamp((reward.age-0.65)/0.4,0,1);
+  reward.x=reward.fromX+(W-43-reward.fromX)*t*t;
+  reward.y=reward.fromY-28*Math.sin(Math.PI*clamp(reward.age/0.65,0,1))+(H-54-reward.fromY)*t*t;
+}
+function drawHandPose(alpha) {
+  if(alpha<=0)return;
+  const sx=shooter.x,sy=shooter.y;
+  const tension=drag?clamp(Math.hypot(sx-drag.x,sy-drag.y)/MAX_PULL,0,1):0;
+  ctx.save();ctx.globalAlpha=alpha;
+  ctx.fillStyle="#98603c";ctx.strokeStyle="#59351f";ctx.lineWidth=2;
+  // Broad palm silhouettes with thumb and forefinger kept anatomically compact.
+  ctx.beginPath();ctx.ellipse(sx-27,sy+35,26,19,-0.3,0,Math.PI*2);ctx.fill();ctx.stroke();
+  ctx.strokeStyle="#98603c";ctx.lineWidth=12;ctx.lineCap="round";
+  ctx.beginPath();ctx.moveTo(sx-35,sy+34);ctx.lineTo(sx-51,sy+44);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(sx-16,sy+27);ctx.lineTo(sx-6,sy+7);ctx.stroke();
+  const rx=sx+38+tension*9,ry=sy+38+tension*4;
+  ctx.fillStyle="#ad7047";ctx.strokeStyle="#59351f";ctx.lineWidth=2;
+  ctx.beginPath();ctx.ellipse(rx,ry,24,18,0.25,0,Math.PI*2);ctx.fill();ctx.stroke();
+  ctx.strokeStyle="#ad7047";ctx.lineWidth=10;
+  ctx.beginPath();ctx.moveTo(rx-13,ry-7);ctx.lineTo(sx+3,sy+10);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(rx-12,ry+4);ctx.lineTo(sx+6,sy+15);ctx.stroke();
+  ctx.restore();
+}
+function drawReward() {
+  if(!reward)return;
+  const r=reward, t=clamp(r.age/0.65,0,1);
+  ctx.save();
+  ctx.fillStyle=r.item.color;ctx.strokeStyle="#fff0c2";ctx.lineWidth=2;
+  ctx.beginPath();ctx.arc(r.x,r.y-22*t,10+7*Math.sin(Math.PI*t),0,Math.PI*2);ctx.fill();ctx.stroke();
+  if(r.age<0.75){
+    ctx.font="bold 12px system-ui,sans-serif";ctx.textAlign="center";ctx.fillStyle="#fff5d2";
+    ctx.fillText(r.item.name,r.x,r.y-46);
+  }
+  ctx.restore();
+}
+function drawCollectionBook() {
+  if(!collectionOpen)return;
+  ctx.save();ctx.fillStyle="rgba(35,23,16,.91)";ctx.fillRect(12,H*0.25,W-24,H*0.57);
+  ctx.textAlign="center";ctx.fillStyle="#ffe9b5";ctx.font="bold 19px system-ui,sans-serif";
+  ctx.fillText("KANCHA POTLI",W/2,H*0.30);
+  ctx.font="13px system-ui,sans-serif";
+  ctx.fillText("Finds: "+collection.total+"   Coins: "+collection.coins,W/2,H*0.34);
+  ctx.fillText("Rarest: "+collection.rarest,W/2,H*0.375);
+  const entries=[...REWARDS.filter(x=>x.id!=="coin"),{id:"daily",name:"Daily Marble",color:"#57c7b0"}];
+  entries.forEach((item,i)=>{
+    const yy=H*0.42+i*clamp(H*0.037,23,32);
+    if(yy>H*0.77)return;
+    ctx.textAlign="left";ctx.fillStyle=item.color;ctx.beginPath();ctx.arc(35,yy,7,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle="#fff3d9";ctx.font="12px system-ui,sans-serif";
+    ctx.fillText(item.name+"  × "+(collection.items[item.id]||0),52,yy);
+  });
+  ctx.textAlign="center";ctx.fillStyle="#ffe9b5";ctx.font="bold 13px system-ui,sans-serif";
+  ctx.fillText("TAP BOOK TO CLOSE",W/2,H*0.79);
+  ctx.restore();
+}
 function update(dt) {
   impactFlash = Math.max(0, impactFlash - dt);
+  postFlick = Math.max(0, postFlick-dt);
+  updateReward(dt);
   if (resultText) resultAge += dt;
   if (mode === "celebrating") {
     celebrationAge += dt;
-    if (celebrationAge >= 2.8) { rounds++; reset(); }
+    if (celebrationAge >= 2.8 && !reward) { rounds++; reset(); }
     return;
   }
   if (mode !== "moving") return;
   shotTime += dt;
-  hopV -= 980 * dt; hopZ += hopV * dt;
+  // Flat-ground rolling only: no vertical hop or skip.
+  hopZ = 0; hopV = 0;
   if (hopZ <= 0) { hopZ = 0; if (!landedOnce && hopV < 0) { landedOnce = true; hopV = 0; } }
   // Substeps reduce tunnelling on small screens and strong flicks.
   const steps = Math.max(1, Math.ceil(dt / (1 / 120)));
@@ -252,7 +348,7 @@ function render() {
   }
   ctx.letterSpacing = "0px";
   // ENERGY bar: pull strength is visible before release.
-  const barW = Math.min(W * 0.62, 250), barH = 11, barX = (W-barW)/2, barY = Math.max(126, H*0.245);
+  const barW = W*0.86, barH = 14, barX = W*0.07, barY = Math.max(126, H*0.245);
   const energy = drag ? clamp(Math.hypot(shooter.x-drag.x,shooter.y-drag.y)/MAX_PULL,0,1) : 0;
   ctx.fillStyle="rgba(74,45,25,.22)"; ctx.fillRect(barX,barY,barW,barH);
   if (energy>0) { ctx.fillStyle="#f0cf65"; ctx.fillRect(barX,barY,barW*energy,barH); }
@@ -265,32 +361,7 @@ function render() {
     ctx.strokeStyle = "rgba(91,58,31,.48)"; ctx.lineWidth = 1.5; ctx.stroke();
   }
   if (drag) {
-    // Deliberately schematic but unmistakable two-hand catapult silhouette.
-    // Keep both hands close to the kancha; never stretch them to the touch point.
-    const rawPull = Math.hypot(shooter.x-drag.x, shooter.y-drag.y);
-    const tension = clamp(rawPull/MAX_PULL,0,1);
-    const sx = shooter.x, sy = shooter.y;
-    ctx.save();
-    ctx.globalAlpha = 0.96;
-    ctx.fillStyle = "#d99a70"; ctx.strokeStyle = "#633b29"; ctx.lineWidth = 2.4;
-    // LEFT / shooting hand: palm below-left, thumb planted on dirt.
-    ctx.beginPath(); ctx.ellipse(sx-30,sy+38,31,23,-0.28,0,Math.PI*2); ctx.fill(); ctx.stroke();
-    ctx.strokeStyle="#d99a70"; ctx.lineWidth=15; ctx.lineCap="round";
-    ctx.beginPath(); ctx.moveTo(sx-43,sy+42); ctx.lineTo(sx-61,sy+58); ctx.stroke();
-    // Shooting forefinger rises to the back edge of the marble.
-    ctx.beginPath(); ctx.moveTo(sx-17,sy+30); ctx.lineTo(sx-7,sy+8); ctx.stroke();
-    // RIGHT / pulling hand: compact palm, offset according to tension.
-    const rx=sx+43+tension*12, ry=sy+42+tension*5;
-    ctx.fillStyle="#e0a47c"; ctx.strokeStyle="#633b29"; ctx.lineWidth=2.4;
-    ctx.beginPath(); ctx.ellipse(rx,ry,29,22,0.22,0,Math.PI*2); ctx.fill(); ctx.stroke();
-    // Thumb + forefinger form a visible pinch around shooting fingertip.
-    ctx.strokeStyle="#e0a47c"; ctx.lineWidth=13; ctx.lineCap="round";
-    ctx.beginPath(); ctx.moveTo(rx-17,ry-9); ctx.lineTo(sx+4,sy+11); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(rx-13,ry+5); ctx.lineTo(sx+7,sy+17); ctx.stroke();
-    // Dark crease between pinching fingers improves readability.
-    ctx.strokeStyle="#633b29"; ctx.lineWidth=2;
-    ctx.beginPath(); ctx.moveTo(sx+7,sy+10); ctx.quadraticCurveTo(sx+18,sy+20,rx-11,ry+3); ctx.stroke();
-    ctx.restore();
+    drawHandPose(1);
     const dx = shooter.x - drag.x, dy = shooter.y - drag.y;
     const raw = Math.hypot(dx, dy);
     const pull = Math.min(MAX_PULL, raw);
@@ -306,7 +377,15 @@ function render() {
     }
   }
   for (const t of targets) if (!t.cleared) drawBall(t);
+  if(!drag && (mode==="ready" || postFlick>0))drawHandPose(mode==="ready"?0.85:postFlick/0.48*0.65);
   drawBall(shooter);
+  drawReward();
+  // Potli tray remains visible; collection book opens with a tap.
+  ctx.fillStyle="rgba(72,42,24,.84)";ctx.fillRect(W-103,H-92,94,72);
+  ctx.fillStyle="#ffe5a2";ctx.textAlign="center";ctx.font="bold 13px system-ui,sans-serif";
+  ctx.fillText("POTLI",W-56,H-71);ctx.font="12px system-ui,sans-serif";
+  ctx.fillText("Finds "+collection.total,W-56,H-49);
+  ctx.fillText("BOOK ↗",W-56,H-30);
   if (mode === "celebrating") {
     // Fast radial burst: stars + flower-like petals, driven entirely by celebrationAge.
     const cx = W / 2, cy = H * 0.47;
@@ -341,6 +420,7 @@ function render() {
     ctx.fillText("NEXT ROUND STARTING…", cx, cy + 39);
     ctx.shadowBlur = 0;
   }
+  drawCollectionBook();
   if (impactFlash > 0) {
     for (const t of targets) {
       if (!t.cleared) continue;
