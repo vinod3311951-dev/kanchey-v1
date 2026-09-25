@@ -244,16 +244,36 @@ function render() {
   for (const t of targets) if (!t.cleared) drawBall(t);
   drawBall(shooter);
   if (mode === "celebrating") {
-    ctx.fillStyle = "rgba(71,43,22,0.83)";
-    const panelW = Math.min(W - 36, 330), panelH = 154;
-    ctx.fillRect((W-panelW)/2, H*0.48-panelH/2, panelW, panelH);
+    // Fast radial burst: stars + flower-like petals, driven entirely by celebrationAge.
+    const cx = W / 2, cy = H * 0.47;
+    const burstT = clamp(celebrationAge / 1.35, 0, 1);
+    const fade = clamp(1 - Math.max(0, celebrationAge - 1.65) / 1.05, 0, 1);
+    const ease = 1 - Math.pow(1 - burstT, 3);
+    const glyphs = ["★", "✦", "✿", "❋"];
+    const burstColors = ["#fff2a8", "#f7c84b", "#ff8a5b", "#f6e7c1"];
+    ctx.save();
+    for (let i = 0; i < 28; i++) {
+      const angle = (Math.PI * 2 * i / 28) + ((i % 3) - 1) * 0.11;
+      const dist = (36 + (i % 7) * 13) * ease;
+      const x = cx + Math.cos(angle) * dist;
+      const y = cy + Math.sin(angle) * dist * 0.72 - 18 * burstT;
+      ctx.globalAlpha = fade * (0.72 + (i % 4) * 0.07);
+      ctx.fillStyle = burstColors[i % burstColors.length];
+      ctx.font = (i % 2 ? "bold 20px" : "bold 25px") + " system-ui, sans-serif";
+      ctx.fillText(glyphs[i % glyphs.length], x, y);
+    }
+    ctx.restore();
+
+    ctx.fillStyle = "rgba(71,43,22,0.88)";
+    const panelW = Math.min(W - 42, 326), panelH = 142;
+    ctx.fillRect((W-panelW)/2, cy-panelH/2, panelW, panelH);
     ctx.fillStyle = "#fff0c6";
-    ctx.font = "bold 27px system-ui, sans-serif";
-    ctx.fillText("ALL THREE CLEARED!", W/2, H*0.48-38);
-    ctx.font = "600 21px system-ui, sans-serif";
-    ctx.fillText(completedShots + (completedShots === 1 ? " SHOT" : " SHOTS"), W/2, H*0.48+2);
-    ctx.font = "500 14px system-ui, sans-serif";
-    ctx.fillText("NEXT ROUND STARTING…", W/2, H*0.48+43);
+    ctx.font = "bold 25px system-ui, sans-serif";
+    ctx.fillText("ALL THREE CLEARED!", cx, cy-35);
+    ctx.font = "700 21px system-ui, sans-serif";
+    ctx.fillText(completedShots + (completedShots === 1 ? " SHOT" : " SHOTS"), cx, cy+3);
+    ctx.font = "500 13px system-ui, sans-serif";
+    ctx.fillText("NEXT ROUND STARTING…", cx, cy+40);
   }
   if (impactFlash > 0) {
     for (const t of targets) {
