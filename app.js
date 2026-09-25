@@ -1,9 +1,10 @@
 "use strict";
-// KANCHEY — Hour 4: round completion and best-shot challenge. Physics unchanged.
+// KANCHEY — V1 cultural-mechanic prototype: catapult launch, hop/land, persistent lie.
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d", { alpha: false });
 let W = 0, H = 0, dpr = 1, scale = 1;
 let shooter, targets = [], drag = null, mode = "ready", shotTime = 0, restTime = 0;
+let hopZ = 0, hopV = 0, landedOnce = false;
 let impactFlash = 0, audio = null, lastFrame = 0;
 let shots = 0, hits = 0, shotHit = false, resultText = "", resultAge = 0;
 let cleared = 0, roundShots = 0, rounds = 1;
@@ -26,6 +27,7 @@ function reset() {
   ];
   cleared = 0; roundShots = 0;
   drag = null; mode = "ready"; shotTime = 0; restTime = 0; impactFlash = 0;
+  hopZ = 0; hopV = 0; landedOnce = false;
 }
 function resize() {
   const oldW = W, oldH = H;
@@ -105,6 +107,7 @@ function release(e, cancelled = false) {
   shooter.vx = (dx / norm) * speed;
   shooter.vy = (dy / norm) * speed;
   mode = "moving"; shotTime = 0; restTime = 0;
+  hopZ = 0; hopV = 155 + 125 * power; landedOnce = false;
   shots++; roundShots++; shotHit = false; resultText = ""; resultAge = 0;
   e.preventDefault();
 }
@@ -154,6 +157,8 @@ function update(dt) {
   }
   if (mode !== "moving") return;
   shotTime += dt;
+  hopV -= 760 * dt; hopZ += hopV * dt;
+  if (hopZ <= 0) { hopZ = 0; if (!landedOnce && hopV < 0) { landedOnce = true; hopV = 0; } }
   // Substeps reduce tunnelling on small screens and strong flicks.
   const steps = Math.max(1, Math.ceil(dt / (1 / 120)));
   const step = dt / steps;
@@ -164,7 +169,8 @@ function update(dt) {
       b.vx *= decay; b.vy *= decay;
       wall(b);
     }
-    for (const t of targets) if (!t.cleared) collide(shooter, t, true);
+    // A low hop can strike a kancha; high flight passes over it until descending.
+    if (hopZ <= shooter.r * 1.35) for (const t of targets) if (!t.cleared) collide(shooter, t, true);
     for (let a = 0; a < targets.length; a++)
       for (let b = a + 1; b < targets.length; b++)
         if (!targets[a].cleared && !targets[b].cleared) collide(targets[a], targets[b], false);
@@ -182,10 +188,11 @@ function update(dt) {
       mode = "celebrating";
       resultText = ""; resultAge = 0;
     } else {
-      const r = shooter.r;
-      shooter = makeMarble(W * 0.5, H * 0.74, r, 1.12, "#1b71d2");
+      // Traditional continuation: the next strike starts exactly where the shooter stopped.
+      shooter.vx = 0; shooter.vy = 0;
       for (const t of targets) { t.vx = 0; t.vy = 0; }
       mode = "ready"; shotTime = 0; restTime = 0; impactFlash = 0;
+      hopZ = 0; hopV = 0; landedOnce = false;
     }
   }
 }
@@ -197,7 +204,12 @@ function drawBall(b) {
   } else {
     grad.addColorStop(0, "#fff6c9"); grad.addColorStop(0.36, "#efcc74"); grad.addColorStop(1, "#98612b");
   }
-  ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+  const lift = b === shooter ? hopZ : 0;
+  if (b === shooter && lift > 1) {
+    ctx.beginPath(); ctx.ellipse(b.x, b.y + b.r * 0.72, b.r * (1 + lift/180), b.r * 0.38, 0, 0, Math.PI*2);
+    ctx.fillStyle = "rgba(65,38,20," + clamp(0.3 - lift/700,0.08,0.3) + ")"; ctx.fill();
+  }
+  ctx.beginPath(); ctx.arc(b.x, b.y - lift, b.r, 0, Math.PI * 2);
   ctx.fillStyle = grad; ctx.fill();
   ctx.lineWidth = 1.3; ctx.strokeStyle = "rgba(255,255,255,.52)"; ctx.stroke();
 }
@@ -227,6 +239,14 @@ function render() {
     ctx.strokeStyle = "rgba(91,58,31,.48)"; ctx.lineWidth = 1.5; ctx.stroke();
   }
   if (drag) {
+    // Two-hand catapult cue: grounded support hand + pulling finger behind the shooter.
+    const handY = shooter.y + shooter.r * 1.45;
+    ctx.strokeStyle = "rgba(92,53,30,.72)"; ctx.lineWidth = 8; ctx.lineCap = "round";
+    ctx.beginPath(); ctx.moveTo(shooter.x - 38, handY + 10); ctx.lineTo(shooter.x - 8, handY); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(shooter.x + 38, handY + 12); ctx.lineTo(shooter.x + 9, shooter.y + 5); ctx.stroke();
+    ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(shooter.x + 9, shooter.y + 5); ctx.lineTo(drag.x, drag.y); ctx.stroke();
+    ctx.lineCap = "butt";
     const dx = shooter.x - drag.x, dy = shooter.y - drag.y;
     const raw = Math.hypot(dx, dy);
     const pull = Math.min(MAX_PULL, raw);
