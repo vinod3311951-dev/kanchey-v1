@@ -239,30 +239,31 @@ function render() {
     ctx.strokeStyle = "rgba(91,58,31,.48)"; ctx.lineWidth = 1.5; ctx.stroke();
   }
   if (drag) {
-    // Compact two-hand catapult pose. Pull distance changes the pose slightly,
-    // but illustrated fingers never stretch to the player's touch point.
-    const rawPull = Math.hypot(shooter.x - drag.x, shooter.y - drag.y);
-    const posePull = clamp(rawPull / MAX_PULL, 0, 1);
-    const hx = shooter.x, hy = shooter.y + shooter.r * 1.05;
-    const pullHandX = hx + 32 + posePull * 18;
-    const pullHandY = hy + 25 + posePull * 8;
+    // Deliberately schematic but unmistakable two-hand catapult silhouette.
+    // Keep both hands close to the kancha; never stretch them to the touch point.
+    const rawPull = Math.hypot(shooter.x-drag.x, shooter.y-drag.y);
+    const tension = clamp(rawPull/MAX_PULL,0,1);
+    const sx = shooter.x, sy = shooter.y;
     ctx.save();
-    ctx.fillStyle = "#c98a61"; ctx.strokeStyle = "#70452f"; ctx.lineWidth = 2;
-    // Grounded shooting palm and planted thumb.
-    ctx.beginPath(); ctx.ellipse(hx - 10, hy + 20, 27, 16, -0.18, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-    ctx.strokeStyle="#c98a61"; ctx.lineWidth=12; ctx.lineCap="round";
-    ctx.beginPath(); ctx.moveTo(hx - 25, hy + 16); ctx.lineTo(hx - 41, hy + 29); ctx.stroke();
-    // Short shooting finger beside the kancha.
-    ctx.lineWidth=11;
-    ctx.beginPath(); ctx.moveTo(hx - 2, hy + 9); ctx.lineTo(hx + 7, shooter.y + 7); ctx.stroke();
-    // Compact second hand; it shifts only a few pixels as tension increases.
-    ctx.fillStyle="#d39a72"; ctx.strokeStyle="#70452f"; ctx.lineWidth=2;
-    ctx.beginPath(); ctx.ellipse(pullHandX, pullHandY, 22, 15, 0.2, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-    ctx.strokeStyle="#d39a72"; ctx.lineWidth=9; ctx.lineCap="round";
-    ctx.beginPath(); ctx.moveTo(pullHandX-13, pullHandY-5); ctx.lineTo(hx+8, shooter.y+9); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(pullHandX-7, pullHandY+4); ctx.lineTo(hx+11, shooter.y+13); ctx.stroke();
-    ctx.strokeStyle="#70452f"; ctx.lineWidth=1.5;
-    ctx.beginPath(); ctx.arc(hx+8, shooter.y+9, 6, 0, Math.PI*2); ctx.stroke();
+    ctx.globalAlpha = 0.96;
+    ctx.fillStyle = "#d99a70"; ctx.strokeStyle = "#633b29"; ctx.lineWidth = 2.4;
+    // LEFT / shooting hand: palm below-left, thumb planted on dirt.
+    ctx.beginPath(); ctx.ellipse(sx-30,sy+38,31,23,-0.28,0,Math.PI*2); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle="#d99a70"; ctx.lineWidth=15; ctx.lineCap="round";
+    ctx.beginPath(); ctx.moveTo(sx-43,sy+42); ctx.lineTo(sx-61,sy+58); ctx.stroke();
+    // Shooting forefinger rises to the back edge of the marble.
+    ctx.beginPath(); ctx.moveTo(sx-17,sy+30); ctx.lineTo(sx-7,sy+8); ctx.stroke();
+    // RIGHT / pulling hand: compact palm, offset according to tension.
+    const rx=sx+43+tension*12, ry=sy+42+tension*5;
+    ctx.fillStyle="#e0a47c"; ctx.strokeStyle="#633b29"; ctx.lineWidth=2.4;
+    ctx.beginPath(); ctx.ellipse(rx,ry,29,22,0.22,0,Math.PI*2); ctx.fill(); ctx.stroke();
+    // Thumb + forefinger form a visible pinch around shooting fingertip.
+    ctx.strokeStyle="#e0a47c"; ctx.lineWidth=13; ctx.lineCap="round";
+    ctx.beginPath(); ctx.moveTo(rx-17,ry-9); ctx.lineTo(sx+4,sy+11); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(rx-13,ry+5); ctx.lineTo(sx+7,sy+17); ctx.stroke();
+    // Dark crease between pinching fingers improves readability.
+    ctx.strokeStyle="#633b29"; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(sx+7,sy+10); ctx.quadraticCurveTo(sx+18,sy+20,rx-11,ry+3); ctx.stroke();
     ctx.restore();
     const dx = shooter.x - drag.x, dy = shooter.y - drag.y;
     const raw = Math.hypot(dx, dy);
