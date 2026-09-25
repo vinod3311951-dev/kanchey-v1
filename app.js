@@ -16,7 +16,7 @@ let cleared = 0, roundShots = 0, rounds = 1;
 let bestShots = null, completedShots = 0, celebrationAge = 0;
 const CHAPTERS=["First Flick","Glass Garden","Crossfire","Long Shot","Tricky Angles","Master's Yard","Kancha Dominion"];
 const TOTAL_LEVELS=105;
-let level=1, levelPicker=false, musicOn=false, musicGain=null, musicNext=0, musicStep=0;
+let level=1, levelPicker=false, musicOn=true, musicGain=null, musicNext=0, musicStep=0;
 const bestByLevel=Array(TOTAL_LEVELS).fill(null);
 const clampLevel=n=>Math.max(1,Math.min(TOTAL_LEVELS,n));
 const MAX_PULL = 190;
@@ -89,7 +89,7 @@ function unlockAudio() {
 function setupMusic(){
   if(!audio)return;
   if(!musicGain){musicGain=audio.createGain();musicGain.gain.value=0;musicGain.connect(audio.destination);}
-  musicGain.gain.setTargetAtTime(musicOn?.055:0,audio.currentTime,.15);
+  musicGain.gain.setTargetAtTime(musicOn?.13:0,audio.currentTime,.15);
   if(musicOn)musicNext=audio.currentTime+.08;
 }
 function updateMusic(){
@@ -100,7 +100,7 @@ function updateMusic(){
     const start=Math.max(musicNext,audio.currentTime+.01),freq=notes[musicStep%notes.length];
     const osc=audio.createOscillator(),env=audio.createGain();
     osc.type="sine";osc.frequency.setValueAtTime(freq,start);
-    env.gain.setValueAtTime(.0001,start);env.gain.exponentialRampToValueAtTime(.17,start+.13);
+    env.gain.setValueAtTime(.0001,start);env.gain.exponentialRampToValueAtTime(.28,start+.13);
     env.gain.exponentialRampToValueAtTime(.0001,start+1.6);
     osc.connect(env).connect(musicGain);osc.start(start);osc.stop(start+1.65);
     musicStep++;musicNext=start+.65;
@@ -142,8 +142,8 @@ function drawFX(){
   ctx.save();
   for(const c of coinBursts){
     ctx.globalAlpha=clamp(1-c.age/.95,0,1);ctx.save();ctx.translate(c.x,c.y);ctx.rotate(c.spin);
-    const g=ctx.createLinearGradient(-7,0,7,0);g.addColorStop(0,"#9f6b12");g.addColorStop(.45,"#ffe47a");g.addColorStop(1,"#c88b1c");
-    ctx.fillStyle=g;ctx.beginPath();ctx.ellipse(0,0,7,4.5,0,0,Math.PI*2);ctx.fill();ctx.strokeStyle="#fff0a8";ctx.lineWidth=1;ctx.stroke();ctx.restore();
+    const g=ctx.createLinearGradient(-7,0,7,0);g.addColorStop(0,"#9d2d05");g.addColorStop(.45,"#ff8b00");g.addColorStop(.72,"#ffc12b");g.addColorStop(1,"#d64a08");
+    ctx.fillStyle=g;ctx.beginPath();ctx.ellipse(0,0,7,4.5,0,0,Math.PI*2);ctx.fill();ctx.strokeStyle="#e76806";ctx.lineWidth=1;ctx.stroke();ctx.restore();
   }
   for(const p of levelBurst){
     ctx.globalAlpha=clamp(1-p.age/2.3,0,1);ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.spin);
@@ -175,6 +175,9 @@ function clickSound(intensity) {
 }
 canvas.addEventListener("pointerdown", e => {
   const p = position(e);
+  // Mobile browsers require a user gesture before music can start.
+  if(!audio){unlockAudio();setupMusic();}
+  else if(audio.state==="suspended")unlockAudio();
   if(collectionOpen){collectionOpen=false;e.preventDefault();return;}
   if (p.x > W-112 && p.y > H-100) {collectionOpen=true;e.preventDefault();return;}
   if(p.y<76 && p.x<105){levelPicker=!levelPicker;e.preventDefault();return;}
@@ -314,7 +317,7 @@ function drawReward() {
   ctx.fillStyle=r.item.color;ctx.strokeStyle="#fff0c2";ctx.lineWidth=2;
   ctx.beginPath();ctx.arc(r.x,r.y-22*t,10+7*Math.sin(Math.PI*t),0,Math.PI*2);ctx.fill();ctx.stroke();
   if(r.age<0.88){
-    ctx.font="bold 12px system-ui,sans-serif";ctx.textAlign="center";ctx.fillStyle="#fff5d2";
+    ctx.font="bold 12px system-ui,sans-serif";ctx.textAlign="center";ctx.fillStyle="#ff9a12";
     ctx.fillText("FOUND!",r.x,r.y-46);
   }
   ctx.restore();
@@ -433,26 +436,26 @@ function render() {
   tableGlow.addColorStop(0,"rgba(222,237,240,.20)");tableGlow.addColorStop(1,"rgba(255,255,255,0)");ctx.fillStyle=tableGlow;ctx.fillRect(0,0,W,H);
   ctx.textAlign="center";ctx.textBaseline="middle";ctx.letterSpacing="0px";
   const chapterName=CHAPTERS[Math.floor((level-1)/15)].toUpperCase();
-  labelBox("KANCHEY  •  "+chapterName,W/2,Math.max(35,H*.09),"600 12px system-ui, sans-serif","#e8ecee",13,28);
+  labelBox("KANCHEY  •  "+chapterName,W/2,85,"600 12px system-ui, sans-serif","#e8ecee",13,27);
   labelBox("LEVELS",48,43,"bold 11px system-ui, sans-serif","#1597c4",10,25,"#fff");
   labelBox(musicOn?"♫ ON":"♫ OFF",W-48,43,"bold 11px system-ui, sans-serif","#e8ecee",10,25);
-  labelBox("HITS "+hits+" / "+shots,W/2,Math.max(68,H*.14),"600 16px system-ui, sans-serif","#e8ecee",15,30);
-  labelBox("LEVEL "+level+"/105  •  CLEARED "+cleared+"/3  •  SHOTS "+roundShots,W/2,Math.max(101,H*.18),"600 12px system-ui, sans-serif","#e8ecee",10,27);
-  labelBox("BEST "+(bestShots===null?"—":bestShots+" SHOTS"),W/2,Math.max(132,H*.215),"600 12px system-ui, sans-serif","#e8ecee",12,26);
+  labelBox("HITS "+hits+" / "+shots,W/2,117,"600 16px system-ui, sans-serif","#e8ecee",15,27);
+  labelBox("LEVEL "+level+"/105  •  CLEARED "+cleared+"/3  •  SHOTS "+roundShots,W/2,149,"600 12px system-ui, sans-serif","#e8ecee",10,27);
+  labelBox("BEST "+(bestShots===null?"—":bestShots+" SHOTS"),W/2,181,"600 12px system-ui, sans-serif","#e8ecee",12,26);
   if (resultText && resultAge < 1.2) {
     ctx.font = "bold 26px system-ui, sans-serif";
-    ctx.fillStyle = resultText === "HIT!" ? "#f7e9b1" : "#55361f";
+    ctx.fillStyle = resultText === "HIT!" ? "#d85a08" : "#55361f";
     ctx.fillText(resultText, W / 2, H * 0.54);
     ctx.fillStyle = "#263238";
   }
   ctx.letterSpacing = "0px";
   // ENERGY bar: pull strength is visible before release.
-  const barW = W*0.86, barH = 14, barX = W*0.07, barY = Math.max(126, H*0.245);
+  const barW = W*0.86, barH = 14, barX = W*0.07, barY = 227;
   const energy = drag ? clamp(Math.hypot(shooter.x-drag.x,shooter.y-drag.y)/MAX_PULL,0,1) : 0;
   ctx.fillStyle="rgba(42,63,68,.12)"; ctx.fillRect(barX,barY,barW,barH);
   if (energy>0) { const eg=ctx.createLinearGradient(barX,0,barX+barW,0);eg.addColorStop(0,"#43b6e8");eg.addColorStop(.5,"#4bd08a");eg.addColorStop(1,"#ffd64a");ctx.fillStyle=eg;ctx.fillRect(barX,barY,barW*energy,barH); }
   ctx.strokeStyle="rgba(42,63,68,.42)"; ctx.lineWidth=1.5; ctx.strokeRect(barX,barY,barW,barH);
-  labelBox("ENERGY  "+Math.round(energy*100)+"%",W/2,barY-12,"700 10px system-ui, sans-serif","#e8ecee",10,22);
+  labelBox("ENERGY  "+Math.round(energy*100)+"%",W/2,barY-21,"700 10px system-ui, sans-serif","#e8ecee",10,21);
   for (const t of targets) {
     if (t.cleared) continue;
     ctx.beginPath(); ctx.arc(t.x, t.y, t.r + 20, 0, Math.PI * 2);
