@@ -264,16 +264,18 @@ function render() {
     }
     ctx.restore();
 
-    ctx.fillStyle = "rgba(71,43,22,0.88)";
-    const panelW = Math.min(W - 42, 326), panelH = 142;
-    ctx.fillRect((W-panelW)/2, cy-panelH/2, panelW, panelH);
-    ctx.fillStyle = "#fff0c6";
-    ctx.font = "bold 25px system-ui, sans-serif";
-    ctx.fillText("ALL THREE CLEARED!", cx, cy-35);
-    ctx.font = "700 21px system-ui, sans-serif";
-    ctx.fillText(completedShots + (completedShots === 1 ? " SHOT" : " SHOTS"), cx, cy+3);
-    ctx.font = "500 13px system-ui, sans-serif";
-    ctx.fillText("NEXT ROUND STARTING…", cx, cy+40);
+    // Keep the celebration unobstructed: no opaque result card.
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = "#fff5d2";
+    ctx.shadowColor = "rgba(77,39,14,0.9)";
+    ctx.shadowBlur = 7;
+    ctx.font = "bold " + Math.min(25, W * 0.059) + "px system-ui, sans-serif";
+    ctx.fillText("ALL THREE CLEARED!", cx, cy - 39);
+    ctx.font = "bold 23px system-ui, sans-serif";
+    ctx.fillText(completedShots + (completedShots === 1 ? " SHOT" : " SHOTS"), cx, cy + 1);
+    ctx.font = "600 14px system-ui, sans-serif";
+    ctx.fillText("NEXT ROUND STARTING…", cx, cy + 39);
+    ctx.shadowBlur = 0;
   }
   if (impactFlash > 0) {
     for (const t of targets) {
