@@ -1,11 +1,14 @@
 "use strict";
-// KANCHEY — Hour 2 gameplay-loop test. Physics frozen; no production assets or PWA caching.
+// KANCHEY — Three-distance aim test. Physics unchanged; no production assets or PWA caching.
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d", { alpha: false });
 let W = 0, H = 0, dpr = 1, scale = 1;
 let shooter, target, drag = null, mode = "ready", shotTime = 0, restTime = 0;
 let impactFlash = 0, audio = null, lastFrame = 0;
 let shots = 0, hits = 0, shotHit = false, resultText = "", resultAge = 0;
+const DISTANCES = [0.59, 0.48, 0.365];
+const DISTANCE_NAMES = ["NEAR", "MEDIUM", "FAR"];
+let distanceIndex = 0, distanceShots = 0;
 const MAX_PULL = 190;
 const FRICTION = 1.45; // gentler rolling resistance so deliberate soft shots can reach
 const RESTITUTION = 0.86;
@@ -17,7 +20,7 @@ function makeMarble(x, y, r, mass, color) {
 function reset() {
   const r = clamp(Math.min(W, H) * 0.046, 13, 22);
   shooter = makeMarble(W * 0.5, H * 0.74, r, 1.12, "#1b71d2");
-  target = makeMarble(W * 0.5, H * 0.365, r * 0.95, 1, "#e8bf68");
+  target = makeMarble(W * 0.5, H * DISTANCES[distanceIndex], r * 0.95, 1, "#e8bf68");
   drag = null; mode = "ready"; shotTime = 0; restTime = 0; impactFlash = 0;
 }
 function resize() {
@@ -96,7 +99,7 @@ function release(e, cancelled = false) {
   shooter.vx = (dx / norm) * speed;
   shooter.vy = (dy / norm) * speed;
   mode = "moving"; shotTime = 0; restTime = 0;
-  shots++; shotHit = false; resultText = ""; resultAge = 0;
+  shots++; distanceShots++; shotHit = false; resultText = ""; resultAge = 0;
   e.preventDefault();
 }
 canvas.addEventListener("pointerup", e => release(e));
@@ -154,6 +157,8 @@ function update(dt) {
   else restTime = 0;
   if ((restTime > 0.65 && shotTime > 0.75) || shotTime > 7) {
     if (!shotHit) { resultText = "MISS"; resultAge = 0; }
+    // Four attempts per distance, then automatically advance to the next range.
+    if (distanceShots >= 4) { distanceShots = 0; distanceIndex = (distanceIndex + 1) % DISTANCES.length; }
     reset();
   }
 }
@@ -178,6 +183,8 @@ function render() {
   ctx.fillText("KANCHEY — SHOT TEST", W / 2, Math.max(35, H * 0.09));
   ctx.font = "600 17px system-ui, sans-serif";
   ctx.fillText("HITS " + hits + " / " + shots, W / 2, Math.max(63, H * 0.14));
+  ctx.font = "600 14px system-ui, sans-serif";
+  ctx.fillText(DISTANCE_NAMES[distanceIndex] + " TARGET  •  SHOT " + (distanceShots + 1) + "/4", W / 2, Math.max(87, H * 0.18));
   if (resultText && resultAge < 1.2) {
     ctx.font = "bold 26px system-ui, sans-serif";
     ctx.fillStyle = resultText === "HIT!" ? "#f7e9b1" : "#55361f";
