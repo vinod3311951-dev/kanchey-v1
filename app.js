@@ -5,7 +5,7 @@ const ctx = canvas.getContext("2d", { alpha: false });
 let W = 0, H = 0, dpr = 1, scale = 1;
 let shooter, target, drag = null, mode = "ready", shotTime = 0, restTime = 0;
 let impactFlash = 0, audio = null, lastFrame = 0;
-const MAX_PULL = 125;
+const MAX_PULL = 190;
 const FRICTION = 2.55; // exponential rolling resistance, tuned for a 2–3 s shot
 const RESTITUTION = 0.86;
 const EDGE_BOUNCE = 0.42;
@@ -86,7 +86,7 @@ function release(e, cancelled = false) {
   drag = null;
   if (cancelled || pull < 8) return;
   const power = pull / MAX_PULL;
-  const speed = 120 + 540 * Math.pow(power, 1.35);
+  const speed = 72 + 610 * Math.pow(power, 1.08);
   const norm = Math.hypot(dx, dy) || 1;
   shooter.vx = (dx / norm) * speed;
   shooter.vy = (dy / norm) * speed;
@@ -176,7 +176,7 @@ function render() {
       const nx = dx / raw, ny = dy / raw;
       ctx.beginPath();
       ctx.moveTo(shooter.x + nx * (shooter.r + 5), shooter.y + ny * (shooter.r + 5));
-      ctx.lineTo(shooter.x + nx * (shooter.r + 20 + pull * 0.75), shooter.y + ny * (shooter.r + 20 + pull * 0.75));
+      ctx.lineTo(shooter.x + nx * (shooter.r + 20 + pull * 0.58), shooter.y + ny * (shooter.r + 20 + pull * 0.75));
       ctx.strokeStyle = "rgba(255,255,255,.82)";
       ctx.lineWidth = 2.5; ctx.setLineDash([7, 6]); ctx.stroke(); ctx.setLineDash([]);
       ctx.beginPath(); ctx.arc(shooter.x, shooter.y, shooter.r + 6 + pull * 0.06, 0, Math.PI * 2);
