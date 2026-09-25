@@ -239,14 +239,32 @@ function render() {
     ctx.strokeStyle = "rgba(91,58,31,.48)"; ctx.lineWidth = 1.5; ctx.stroke();
   }
   if (drag) {
-    // Two-hand catapult cue: grounded support hand + pulling finger behind the shooter.
-    const handY = shooter.y + shooter.r * 1.45;
-    ctx.strokeStyle = "rgba(92,53,30,.72)"; ctx.lineWidth = 8; ctx.lineCap = "round";
-    ctx.beginPath(); ctx.moveTo(shooter.x - 38, handY + 10); ctx.lineTo(shooter.x - 8, handY); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(shooter.x + 38, handY + 12); ctx.lineTo(shooter.x + 9, shooter.y + 5); ctx.stroke();
-    ctx.lineWidth = 4;
-    ctx.beginPath(); ctx.moveTo(shooter.x + 9, shooter.y + 5); ctx.lineTo(drag.x, drag.y); ctx.stroke();
-    ctx.lineCap = "butt";
+    // Readable two-hand catapult pose: grounded shooting hand plus second hand
+    // pinching/pulling the shooting finger. Still procedural until final art.
+    const hx = shooter.x, hy = shooter.y + shooter.r * 1.05;
+    ctx.save();
+    ctx.fillStyle = "#c98a61"; ctx.strokeStyle = "#70452f"; ctx.lineWidth = 2;
+    // Grounded shooting palm.
+    ctx.beginPath(); ctx.ellipse(hx - 8, hy + 19, 27, 16, -0.18, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+    // Thumb planted toward the dirt.
+    ctx.lineCap = "round"; ctx.lineWidth = 12;
+    ctx.beginPath(); ctx.moveTo(hx - 26, hy + 15); ctx.lineTo(hx - 42, hy + 30); ctx.strokeStyle="#c98a61"; ctx.stroke();
+    ctx.lineWidth = 2; ctx.strokeStyle="#70452f";
+    // Shooting finger touching the kancha.
+    ctx.lineWidth = 11; ctx.strokeStyle="#c98a61"; ctx.lineCap="round";
+    ctx.beginPath(); ctx.moveTo(hx - 1, hy + 8); ctx.lineTo(hx + 8, shooter.y + 5); ctx.stroke();
+    // Pulling hand follows the player's drag point.
+    const px = drag.x, py = drag.y;
+    ctx.fillStyle="#d39a72"; ctx.strokeStyle="#70452f"; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.ellipse(px, py + 12, 23, 15, 0.25, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+    // Two pinching fingers reach toward the shooting finger.
+    ctx.strokeStyle="#d39a72"; ctx.lineWidth=10; ctx.lineCap="round";
+    ctx.beginPath(); ctx.moveTo(px - 10, py + 5); ctx.lineTo(hx + 5, shooter.y + 7); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(px + 8, py + 8); ctx.lineTo(hx + 11, shooter.y + 11); ctx.stroke();
+    // Fingertip outlines make the grip readable on a small phone.
+    ctx.strokeStyle="#70452f"; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.arc(hx + 7, shooter.y + 6, 7, 0, Math.PI*2); ctx.stroke();
+    ctx.restore();
     const dx = shooter.x - drag.x, dy = shooter.y - drag.y;
     const raw = Math.hypot(dx, dy);
     const pull = Math.min(MAX_PULL, raw);
