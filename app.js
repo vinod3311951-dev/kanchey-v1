@@ -80,17 +80,19 @@ function position(e) {
   const box = canvas.getBoundingClientRect();
   return { x: e.clientX - box.left, y: e.clientY - box.top };
 }
-function unlockAudio() {
+async function unlockAudio() {
   try {
-    if (!audio) audio = new (window.AudioContext || window.webkitAudioContext)();
-    if (audio.state === "suspended") audio.resume();
-  } catch (_) { audio = null; }
+    if(!audio) audio=new (window.AudioContext||window.webkitAudioContext)();
+    if(audio.state==="suspended") await audio.resume();
+    if(musicOn) setupMusic();
+  }catch(_){audio=null;}
 }
 function setupMusic(){
   if(!audio)return;
   if(!musicGain){musicGain=audio.createGain();musicGain.gain.value=0;musicGain.connect(audio.destination);}
-  musicGain.gain.setTargetAtTime(musicOn?.13:0,audio.currentTime,.15);
-  if(musicOn)musicNext=audio.currentTime+.08;
+  musicGain.gain.cancelScheduledValues(audio.currentTime);
+  musicGain.gain.setTargetAtTime(musicOn?.18:0,audio.currentTime,.08);
+  if(musicOn && musicNext<audio.currentTime)musicNext=audio.currentTime+.04;
 }
 function updateMusic(){
   if(!musicOn||!audio||!musicGain||audio.state!=="running")return;
@@ -176,12 +178,11 @@ function clickSound(intensity) {
 canvas.addEventListener("pointerdown", e => {
   const p = position(e);
   // Mobile browsers require a user gesture before music can start.
-  if(!audio){unlockAudio();setupMusic();}
-  else if(audio.state==="suspended")unlockAudio();
+  unlockAudio();
   if(collectionOpen){collectionOpen=false;e.preventDefault();return;}
-  if (p.x > W-112 && p.y > H-100) {collectionOpen=true;e.preventDefault();return;}
+  if (p.x > W-116 && p.y > H-112) {collectionOpen=true;e.preventDefault();return;}
   if(p.y<76 && p.x<105){levelPicker=!levelPicker;e.preventDefault();return;}
-  if(p.y<76 && p.x>W-105){musicOn=!musicOn;unlockAudio();setupMusic();e.preventDefault();return;}
+  if(p.y<76 && p.x>W-105){musicOn=!musicOn;unlockAudio();e.preventDefault();return;}
   if(levelPicker){
     const top=H*.18,cellW=(W-24)/5,cellH=Math.min(42,H*.72/21);
     const col=Math.floor((p.x-12)/cellW),row=Math.floor((p.y-top)/cellH);
@@ -484,11 +485,16 @@ function render() {
   drawFX();
   // Potli tray remains visible; collection book opens with a tap.
   // Compact colourful Potli chip. One tap opens; tapping the overlay anywhere closes.
-  ctx.fillStyle="#087f5b";ctx.fillRect(W-96,H-76,84,56);
-  const pg=ctx.createLinearGradient(W-96,0,W-12,0);pg.addColorStop(0,"#48bce8");pg.addColorStop(.5,"#55d58b");pg.addColorStop(1,"#ffd34e");
-  ctx.fillStyle=pg;ctx.fillRect(W-96,H-76,84,5);
-  ctx.fillStyle="#fff";ctx.textAlign="center";ctx.font="bold 12px system-ui,sans-serif";ctx.fillText("POTLI",W-54,H-55);
-  ctx.font="12px system-ui,sans-serif";ctx.fillText(collection.total+" / 12",W-54,H-35);
+  // Potli: simple drawstring-pouch silhouette, matching the locked LEVELS sky blue.
+  const px=W-98,py=H-88,pw=86,ph=70,cx=px+pw/2;
+  ctx.save();ctx.fillStyle="#1597c4";ctx.beginPath();
+  ctx.moveTo(px+22,py+13);ctx.quadraticCurveTo(cx,py+3,px+pw-22,py+13);
+  ctx.lineTo(px+pw-17,py+24);ctx.quadraticCurveTo(px+pw-5,py+42,px+pw-12,py+ph-5);
+  ctx.quadraticCurveTo(cx,py+ph+3,px+12,py+ph-5);ctx.quadraticCurveTo(px+5,py+42,px+17,py+24);
+  ctx.closePath();ctx.fill();
+  ctx.strokeStyle="rgba(255,255,255,.82)";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(px+17,py+24);ctx.quadraticCurveTo(cx,py+31,px+pw-17,py+24);ctx.stroke();
+  ctx.fillStyle="#fff";ctx.textAlign="center";ctx.font="bold 12px system-ui,sans-serif";ctx.fillText("POTLI",cx,py+43);
+  ctx.font="12px system-ui,sans-serif";ctx.fillText(collection.total+" / 12",cx,py+59);ctx.restore();
   if (mode === "celebrating") {
     // Fast radial burst: stars + flower-like petals, driven entirely by celebrationAge.
     const cx = W / 2, cy = H * 0.47;
