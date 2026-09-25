@@ -23,11 +23,11 @@ function makeMarble(x, y, r, mass, color) {
 }
 function reset() {
   const r = clamp(Math.min(W, H) * 0.046, 13, 22);
-  shooter = makeMarble(W * 0.5, H * 0.74, r, 1.12, "#1b71d2");
+  shooter = makeMarble(W * 0.5, H * 0.74, r, 1.12, "#111318");
   targets = [
-    makeMarble(W * 0.5, H * 0.365, r * 0.95, 1, "#e8bf68"),
-    makeMarble(W * 0.28, H * 0.49, r * 0.95, 1, "#e8bf68"),
-    makeMarble(W * 0.72, H * 0.49, r * 0.95, 1, "#e8bf68")
+    makeMarble(W * 0.5, H * 0.365, r * 0.95, 1, "#249e72"),
+    makeMarble(W * 0.28, H * 0.49, r * 0.95, 1, "#257fc0"),
+    makeMarble(W * 0.72, H * 0.49, r * 0.95, 1, "#249e72")
   ];
   cleared = 0; roundShots = 0;
   drag = null; mode = "ready"; shotTime = 0; restTime = 0; impactFlash = 0;
@@ -36,9 +36,9 @@ function reset() {
   reward = null; postFlick = 0;
 }
 function placeShooterChallenge() {
-  const margin = Math.max(shooter.r * 3.1, W * 0.15);
+  const margin = Math.max(shooter.r * 4.8, W * 0.22);
   const minY = Math.max(H * 0.61, H * 0.5 + shooter.r * 3);
-  const maxY = H - Math.max(shooter.r * 3.4, H * 0.15);
+  const maxY = H - Math.max(shooter.r * 5.2, H * 0.20);
   let bestX = W * 0.5, bestY = H * 0.76, bestScore = -1;
   for (let i = 0; i < 18; i++) {
     const x = margin + Math.random() * Math.max(1, W - margin * 2);
@@ -96,8 +96,8 @@ function clickSound(intensity) {
 }
 canvas.addEventListener("pointerdown", e => {
   const p = position(e);
-  if (p.x > W-105 && p.y > H-100) {collectionOpen=!collectionOpen;e.preventDefault();return;}
   if(collectionOpen){collectionOpen=false;e.preventDefault();return;}
+  if (p.x > W-112 && p.y > H-100) {collectionOpen=true;e.preventDefault();return;}
   if (mode !== "ready" || reward) return;
   const dist = Math.hypot(p.x - shooter.x, p.y - shooter.y);
   if (dist > Math.max(shooter.r * 2.4, 34)) return;
@@ -203,16 +203,16 @@ function drawHandPose(alpha) {
   const sx=shooter.x,sy=shooter.y;
   const tension=drag?clamp(Math.hypot(sx-drag.x,sy-drag.y)/MAX_PULL,0,1):0;
   ctx.save();ctx.globalAlpha=alpha;
-  ctx.fillStyle="#98603c";ctx.strokeStyle="#59351f";ctx.lineWidth=2;
+  ctx.fillStyle="#81502f";ctx.strokeStyle="#4c2d1b";ctx.lineWidth=2;
   // Broad palm silhouettes with thumb and forefinger kept anatomically compact.
   ctx.beginPath();ctx.ellipse(sx-27,sy+35,26,19,-0.3,0,Math.PI*2);ctx.fill();ctx.stroke();
-  ctx.strokeStyle="#98603c";ctx.lineWidth=12;ctx.lineCap="round";
+  ctx.strokeStyle="#81502f";ctx.lineWidth=12;ctx.lineCap="round";
   ctx.beginPath();ctx.moveTo(sx-35,sy+34);ctx.lineTo(sx-51,sy+44);ctx.stroke();
   ctx.beginPath();ctx.moveTo(sx-16,sy+27);ctx.lineTo(sx-6,sy+7);ctx.stroke();
   const rx=sx+38+tension*9,ry=sy+38+tension*4;
-  ctx.fillStyle="#ad7047";ctx.strokeStyle="#59351f";ctx.lineWidth=2;
+  ctx.fillStyle="#95613e";ctx.strokeStyle="#59351f";ctx.lineWidth=2;
   ctx.beginPath();ctx.ellipse(rx,ry,24,18,0.25,0,Math.PI*2);ctx.fill();ctx.stroke();
-  ctx.strokeStyle="#ad7047";ctx.lineWidth=10;
+  ctx.strokeStyle="#95613e";ctx.lineWidth=10;
   ctx.beginPath();ctx.moveTo(rx-13,ry-7);ctx.lineTo(sx+3,sy+10);ctx.stroke();
   ctx.beginPath();ctx.moveTo(rx-12,ry+4);ctx.lineTo(sx+6,sy+15);ctx.stroke();
   ctx.restore();
@@ -233,24 +233,25 @@ function drawCollectionBook() {
   if(!collectionOpen)return;
   const x=18,y=H*0.25,w=W-36,h=Math.min(H*0.55,430);
   ctx.save();
-  ctx.fillStyle="rgba(39,26,17,.94)";ctx.fillRect(x,y,w,h);
-  ctx.strokeStyle="#c99b61";ctx.lineWidth=2;ctx.strokeRect(x,y,w,h);
-  ctx.textAlign="center";ctx.fillStyle="#ffe9b5";ctx.font="bold 19px system-ui,sans-serif";
+  ctx.fillStyle="rgba(248,252,253,.97)";ctx.fillRect(x,y,w,h);
+  ctx.strokeStyle="#86a7ad";ctx.lineWidth=2;ctx.strokeRect(x,y,w,h);
+  ctx.textAlign="center";ctx.fillStyle="#263238";ctx.font="bold 19px system-ui,sans-serif";
   ctx.fillText("KANCHA POTLI — "+collection.total+"/12 FOUND",W/2,y+35);
   const cols=3, gapX=w/cols, gapY=Math.min(78,(h-90)/4);
   for(let i=0;i<12;i++){
     const col=i%3,row=Math.floor(i/3),cx=x+gapX*(col+.5),cy=y+78+row*gapY;
     ctx.beginPath();ctx.arc(cx,cy,18,0,Math.PI*2);
     if(collection.found[i]){
-      ctx.fillStyle=REWARD_COLORS[i];ctx.fill();
-      ctx.strokeStyle="#fff0c2";ctx.lineWidth=2;ctx.stroke();
+      const cg=ctx.createRadialGradient(cx-6,cy-7,2,cx,cy,18);cg.addColorStop(0,"rgba(255,255,255,.95)");cg.addColorStop(.28,REWARD_COLORS[i]);cg.addColorStop(1,"rgba(20,60,70,.78)");ctx.fillStyle=cg;ctx.fill();
+      ctx.strokeStyle="rgba(52,82,88,.35)";ctx.lineWidth=2;ctx.stroke();
+      ctx.beginPath();ctx.arc(cx-6,cy-7,3,0,Math.PI*2);ctx.fillStyle="rgba(255,255,255,.8)";ctx.fill();
     }else{
-      ctx.fillStyle="rgba(0,0,0,.26)";ctx.fill();
-      ctx.strokeStyle="rgba(255,233,181,.38)";ctx.lineWidth=2;ctx.stroke();
-      ctx.fillStyle="#ffe9b5";ctx.font="bold 17px system-ui,sans-serif";ctx.fillText("?",cx,cy+1);
+      ctx.fillStyle="rgba(38,50,56,.12)";ctx.fill();
+      ctx.strokeStyle="rgba(38,50,56,.24)";ctx.lineWidth=2;ctx.stroke();
+      ctx.fillStyle="#263238";ctx.font="bold 17px system-ui,sans-serif";ctx.fillText("?",cx,cy+1);
     }
   }
-  ctx.fillStyle="#ffe9b5";ctx.font="bold 12px system-ui,sans-serif";
+  ctx.fillStyle="#263238";ctx.font="bold 12px system-ui,sans-serif";
   ctx.fillText("TAP BOOK TO CLOSE",W/2,y+h-18);
   ctx.restore();
 }
@@ -307,26 +308,32 @@ function update(dt) {
   }
 }
 function drawBall(b) {
-  // Procedural Canvas shading only. No production artwork.
-  const grad = ctx.createRadialGradient(b.x - b.r * 0.36, b.y - b.r * 0.43, b.r * 0.08, b.x, b.y, b.r);
-  if (b === shooter) {
-    grad.addColorStop(0, "#c4e8ff"); grad.addColorStop(0.34, "#3a9df1"); grad.addColorStop(1, "#12427e");
-  } else {
-    grad.addColorStop(0, "#fff6c9"); grad.addColorStop(0.36, "#efcc74"); grad.addColorStop(1, "#98612b");
+  // Glass-look procedural marbles: translucent shell, internal ribbon and specular highlight.
+  const lift=0, isShooter=b===shooter;
+  ctx.save();
+  ctx.shadowColor="rgba(25,40,50,.20)";ctx.shadowBlur=7;ctx.shadowOffsetY=4;
+  const shell=ctx.createRadialGradient(b.x-b.r*.38,b.y-b.r*.42,b.r*.06,b.x,b.y,b.r);
+  if(isShooter){shell.addColorStop(0,"#777d86");shell.addColorStop(.25,"#252a31");shell.addColorStop(.72,"#0b0d11");shell.addColorStop(1,"#020305");}
+  else if(b.color==="#249e72"){shell.addColorStop(0,"rgba(225,255,247,.98)");shell.addColorStop(.28,"rgba(82,211,158,.82)");shell.addColorStop(.72,"rgba(13,119,78,.86)");shell.addColorStop(1,"rgba(4,66,45,.96)");}
+  else {shell.addColorStop(0,"rgba(232,249,255,.98)");shell.addColorStop(.28,"rgba(73,173,232,.82)");shell.addColorStop(.72,"rgba(18,96,168,.88)");shell.addColorStop(1,"rgba(7,52,105,.97)");}
+  ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,Math.PI*2);ctx.fillStyle=shell;ctx.fill();ctx.shadowBlur=0;
+  if(!isShooter){
+    ctx.save();ctx.beginPath();ctx.arc(b.x,b.y,b.r*.91,0,Math.PI*2);ctx.clip();
+    ctx.strokeStyle=b.color==="#249e72"?"rgba(193,255,88,.88)":"rgba(55,239,213,.82)";
+    ctx.lineWidth=b.r*.28;ctx.lineCap="round";ctx.beginPath();
+    ctx.moveTo(b.x-b.r*.72,b.y+b.r*.38);ctx.quadraticCurveTo(b.x,b.y-b.r*.5,b.x+b.r*.72,b.y+b.r*.18);ctx.stroke();ctx.restore();
   }
-  const lift = b === shooter ? hopZ : 0;
-  if (b === shooter && lift > 1) {
-    ctx.beginPath(); ctx.ellipse(b.x, b.y + b.r * 0.72, b.r * (1 + lift/180), b.r * 0.38, 0, 0, Math.PI*2);
-    ctx.fillStyle = "rgba(65,38,20," + clamp(0.3 - lift/700,0.08,0.3) + ")"; ctx.fill();
-  }
-  ctx.beginPath(); ctx.arc(b.x, b.y - lift, b.r, 0, Math.PI * 2);
-  ctx.fillStyle = grad; ctx.fill();
-  ctx.lineWidth = 1.3; ctx.strokeStyle = "rgba(255,255,255,.52)"; ctx.stroke();
+  ctx.beginPath();ctx.arc(b.x-b.r*.32,b.y-b.r*.38,b.r*.18,0,Math.PI*2);ctx.fillStyle="rgba(255,255,255,.72)";ctx.fill();
+  ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,Math.PI*2);ctx.strokeStyle="rgba(50,70,75,.38)";ctx.lineWidth=1.2;ctx.stroke();
+  ctx.restore();
 }
 function render() {
-  ctx.fillStyle = "#b98252"; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = "#fbfcfd"; ctx.fillRect(0, 0, W, H);
+  // Subtle cool tabletop shadowing keeps the white board tactile rather than flat.
+  const tableGlow=ctx.createRadialGradient(W*.5,H*.52,20,W*.5,H*.52,Math.max(W,H)*.72);
+  tableGlow.addColorStop(0,"rgba(222,237,240,.20)");tableGlow.addColorStop(1,"rgba(255,255,255,0)");ctx.fillStyle=tableGlow;ctx.fillRect(0,0,W,H);
   ctx.textAlign = "center"; ctx.textBaseline = "middle";
-  ctx.fillStyle = "#55361f";
+  ctx.fillStyle = "#263238";
   ctx.font = "600 12px system-ui, sans-serif";
   ctx.letterSpacing = "1.6px";
   ctx.fillText("KANCHEY — THREE TARGETS", W / 2, Math.max(35, H * 0.09));
@@ -340,21 +347,21 @@ function render() {
     ctx.font = "bold 26px system-ui, sans-serif";
     ctx.fillStyle = resultText === "HIT!" ? "#f7e9b1" : "#55361f";
     ctx.fillText(resultText, W / 2, H * 0.54);
-    ctx.fillStyle = "#55361f";
+    ctx.fillStyle = "#263238";
   }
   ctx.letterSpacing = "0px";
   // ENERGY bar: pull strength is visible before release.
   const barW = W*0.86, barH = 14, barX = W*0.07, barY = Math.max(126, H*0.245);
   const energy = drag ? clamp(Math.hypot(shooter.x-drag.x,shooter.y-drag.y)/MAX_PULL,0,1) : 0;
-  ctx.fillStyle="rgba(74,45,25,.22)"; ctx.fillRect(barX,barY,barW,barH);
-  if (energy>0) { ctx.fillStyle="#f0cf65"; ctx.fillRect(barX,barY,barW*energy,barH); }
-  ctx.strokeStyle="rgba(74,45,25,.58)"; ctx.lineWidth=1.5; ctx.strokeRect(barX,barY,barW,barH);
-  ctx.fillStyle="#55361f"; ctx.font="700 10px system-ui, sans-serif";
+  ctx.fillStyle="rgba(42,63,68,.12)"; ctx.fillRect(barX,barY,barW,barH);
+  if (energy>0) { const eg=ctx.createLinearGradient(barX,0,barX+barW,0);eg.addColorStop(0,"#43b6e8");eg.addColorStop(.5,"#4bd08a");eg.addColorStop(1,"#ffd64a");ctx.fillStyle=eg;ctx.fillRect(barX,barY,barW*energy,barH); }
+  ctx.strokeStyle="rgba(42,63,68,.42)"; ctx.lineWidth=1.5; ctx.strokeRect(barX,barY,barW,barH);
+  ctx.fillStyle="#263238"; ctx.font="700 10px system-ui, sans-serif";
   ctx.fillText("ENERGY  "+Math.round(energy*100)+"%",W/2,barY-10);
   for (const t of targets) {
     if (t.cleared) continue;
     ctx.beginPath(); ctx.arc(t.x, t.y, t.r + 20, 0, Math.PI * 2);
-    ctx.strokeStyle = "rgba(91,58,31,.48)"; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.strokeStyle = "rgba(55,83,88,.28)"; ctx.lineWidth = 1.5; ctx.stroke();
   }
   if (drag) {
     drawHandPose(1);
@@ -377,11 +384,12 @@ function render() {
   drawBall(shooter);
   drawReward();
   // Potli tray remains visible; collection book opens with a tap.
-  ctx.fillStyle="rgba(72,42,24,.84)";ctx.fillRect(W-103,H-92,94,72);
-  ctx.fillStyle="#ffe5a2";ctx.textAlign="center";ctx.font="bold 13px system-ui,sans-serif";
-  ctx.fillText("POTLI",W-56,H-71);ctx.font="12px system-ui,sans-serif";
-  ctx.fillText(collection.total+" / 12",W-56,H-49);
-  ctx.fillText("BOOK ↗",W-56,H-30);
+  // Compact colourful Potli chip. One tap opens; tapping the overlay anywhere closes.
+  ctx.fillStyle="rgba(27,49,55,.92)";ctx.fillRect(W-96,H-76,84,56);
+  const pg=ctx.createLinearGradient(W-96,0,W-12,0);pg.addColorStop(0,"#48bce8");pg.addColorStop(.5,"#55d58b");pg.addColorStop(1,"#ffd34e");
+  ctx.fillStyle=pg;ctx.fillRect(W-96,H-76,84,5);
+  ctx.fillStyle="#fff";ctx.textAlign="center";ctx.font="bold 12px system-ui,sans-serif";ctx.fillText("POTLI",W-54,H-55);
+  ctx.font="12px system-ui,sans-serif";ctx.fillText(collection.total+" / 12",W-54,H-35);
   if (mode === "celebrating") {
     // Fast radial burst: stars + flower-like petals, driven entirely by celebrationAge.
     const cx = W / 2, cy = H * 0.47;
