@@ -6,8 +6,8 @@ let W = 0, H = 0, dpr = 1, scale = 1;
 let shooter, targets = [], drag = null, mode = "ready", shotTime = 0, restTime = 0;
 let hopZ = 0, hopV = 0, landedOnce = false;
 let reward = null, collectionOpen = false, postFlick = 0;
-const collection = { coins:0, items:{}, total:0, rarest:"—", dailyDate:"" };
-const REWARDS = [{id:"coin",name:"Coins",rarity:0,color:"#f5cf56",weight:55},{id:"tiger",name:"Tiger-eye",rarity:1,color:"#c77d30",weight:13},{id:"blood",name:"Blood-red",rarity:1,color:"#a52e35",weight:11},{id:"seven",name:"Seven-colour",rarity:1,color:"#8b63cf",weight:9},{id:"moon",name:"Moon-white",rarity:1,color:"#e9f3e9",weight:7},{id:"kali",name:"Kali Bichhua",rarity:2,color:"#3b313a",weight:2},{id:"bhoora",name:"Bhoora",rarity:2,color:"#886443",weight:1},{id:"chandan",name:"Chandan",rarity:2,color:"#d7a878",weight:1},{id:"sona",name:"Sona Chandi",rarity:2,color:"#d7d1a5",weight:1}];
+const collection = { found: Array(12).fill(false), total: 0 };
+const REWARD_COLORS = ["#efc94c","#d45b48","#4f9bd8","#6ab66d","#a978cf","#e8914b","#55b9ae","#d9789c","#8b744e","#d8d8d0","#6688bd","#c9a457"];
 let lastSpawnX = 0;
 let impactFlash = 0, audio = null, lastFrame = 0;
 let shots = 0, hits = 0, shotHit = false, resultText = "", resultAge = 0;
@@ -174,14 +174,10 @@ function collide(a, b, scoreHit = false) {
   }
 }
 function chooseReward() {
-  const today = new Date().toLocaleDateString("en-CA");
-  // One guaranteed daily collectible, never dependent on a lucky drop.
-  if (collection.dailyDate !== today) {
-    return {id:"daily",name:"Daily Marble",rarity:2,color:"#57c7b0"};
-  }
-  let roll=Math.random()*100;
-  for (const item of REWARDS) { roll-=item.weight; if(roll<0)return item; }
-  return REWARDS[0];
+  const missing=[];
+  for(let i=0;i<12;i++) if(!collection.found[i]) missing.push(i);
+  const slot=missing.length ? missing[Math.floor(Math.random()*missing.length)] : Math.floor(Math.random()*12);
+  return {slot,color:REWARD_COLORS[slot]};
 }
 function spawnReward(x,y) {
   if (reward) finishReward();
@@ -190,22 +186,17 @@ function spawnReward(x,y) {
 }
 function finishReward() {
   if(!reward)return;
-  const item=reward.item;
-  collection.total++;
-  if(item.id==="coin") collection.coins+=5;
-  else collection.items[item.id]=(collection.items[item.id]||0)+1;
-  if(item.id==="daily") collection.dailyDate=new Date().toLocaleDateString("en-CA");
-  if(item.rarity>=2)collection.rarest=item.name;
-  else if(item.rarity===1 && collection.rarest==="—")collection.rarest=item.name;
+  const slot=reward.item.slot;
+  if(!collection.found[slot]) { collection.found[slot]=true; collection.total++; }
   reward=null;
 }
 function updateReward(dt) {
   if(!reward)return;
   reward.age+=dt;
-  if(reward.age>=1.05){finishReward();return;}
-  const t=clamp((reward.age-0.65)/0.4,0,1);
+  if(reward.age>=1.25){finishReward();return;}
+  const t=clamp((reward.age-0.88)/0.37,0,1);
   reward.x=reward.fromX+(W-43-reward.fromX)*t*t;
-  reward.y=reward.fromY-28*Math.sin(Math.PI*clamp(reward.age/0.65,0,1))+(H-54-reward.fromY)*t*t;
+  reward.y=reward.fromY-28*Math.sin(Math.PI*clamp(reward.age/0.88,0,1))+(H-54-reward.fromY)*t*t;
 }
 function drawHandPose(alpha) {
   if(alpha<=0)return;
@@ -228,34 +219,39 @@ function drawHandPose(alpha) {
 }
 function drawReward() {
   if(!reward)return;
-  const r=reward, t=clamp(r.age/0.65,0,1);
+  const r=reward, t=clamp(r.age/0.88,0,1);
   ctx.save();
   ctx.fillStyle=r.item.color;ctx.strokeStyle="#fff0c2";ctx.lineWidth=2;
   ctx.beginPath();ctx.arc(r.x,r.y-22*t,10+7*Math.sin(Math.PI*t),0,Math.PI*2);ctx.fill();ctx.stroke();
-  if(r.age<0.75){
+  if(r.age<0.88){
     ctx.font="bold 12px system-ui,sans-serif";ctx.textAlign="center";ctx.fillStyle="#fff5d2";
-    ctx.fillText(r.item.name,r.x,r.y-46);
+    ctx.fillText("FOUND!",r.x,r.y-46);
   }
   ctx.restore();
 }
 function drawCollectionBook() {
   if(!collectionOpen)return;
-  ctx.save();ctx.fillStyle="rgba(35,23,16,.91)";ctx.fillRect(12,H*0.25,W-24,H*0.57);
+  const x=18,y=H*0.25,w=W-36,h=Math.min(H*0.55,430);
+  ctx.save();
+  ctx.fillStyle="rgba(39,26,17,.94)";ctx.fillRect(x,y,w,h);
+  ctx.strokeStyle="#c99b61";ctx.lineWidth=2;ctx.strokeRect(x,y,w,h);
   ctx.textAlign="center";ctx.fillStyle="#ffe9b5";ctx.font="bold 19px system-ui,sans-serif";
-  ctx.fillText("KANCHA POTLI",W/2,H*0.30);
-  ctx.font="13px system-ui,sans-serif";
-  ctx.fillText("Finds: "+collection.total+"   Coins: "+collection.coins,W/2,H*0.34);
-  ctx.fillText("Rarest: "+collection.rarest,W/2,H*0.375);
-  const entries=[...REWARDS.filter(x=>x.id!=="coin"),{id:"daily",name:"Daily Marble",color:"#57c7b0"}];
-  entries.forEach((item,i)=>{
-    const yy=H*0.42+i*clamp(H*0.037,23,32);
-    if(yy>H*0.77)return;
-    ctx.textAlign="left";ctx.fillStyle=item.color;ctx.beginPath();ctx.arc(35,yy,7,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle="#fff3d9";ctx.font="12px system-ui,sans-serif";
-    ctx.fillText(item.name+"  × "+(collection.items[item.id]||0),52,yy);
-  });
-  ctx.textAlign="center";ctx.fillStyle="#ffe9b5";ctx.font="bold 13px system-ui,sans-serif";
-  ctx.fillText("TAP BOOK TO CLOSE",W/2,H*0.79);
+  ctx.fillText("KANCHA POTLI — "+collection.total+"/12 FOUND",W/2,y+35);
+  const cols=3, gapX=w/cols, gapY=Math.min(78,(h-90)/4);
+  for(let i=0;i<12;i++){
+    const col=i%3,row=Math.floor(i/3),cx=x+gapX*(col+.5),cy=y+78+row*gapY;
+    ctx.beginPath();ctx.arc(cx,cy,18,0,Math.PI*2);
+    if(collection.found[i]){
+      ctx.fillStyle=REWARD_COLORS[i];ctx.fill();
+      ctx.strokeStyle="#fff0c2";ctx.lineWidth=2;ctx.stroke();
+    }else{
+      ctx.fillStyle="rgba(0,0,0,.26)";ctx.fill();
+      ctx.strokeStyle="rgba(255,233,181,.38)";ctx.lineWidth=2;ctx.stroke();
+      ctx.fillStyle="#ffe9b5";ctx.font="bold 17px system-ui,sans-serif";ctx.fillText("?",cx,cy+1);
+    }
+  }
+  ctx.fillStyle="#ffe9b5";ctx.font="bold 12px system-ui,sans-serif";
+  ctx.fillText("TAP BOOK TO CLOSE",W/2,y+h-18);
   ctx.restore();
 }
 function update(dt) {
@@ -265,7 +261,7 @@ function update(dt) {
   if (resultText) resultAge += dt;
   if (mode === "celebrating") {
     celebrationAge += dt;
-    if (celebrationAge >= 2.8 && !reward) { rounds++; reset(); }
+    if (celebrationAge >= 3.0 && !reward) { rounds++; reset(); }
     return;
   }
   if (mode !== "moving") return;
@@ -283,7 +279,7 @@ function update(dt) {
       b.vx *= decay; b.vy *= decay;
       wall(b);
     }
-    // A low hop can strike a kancha; high flight passes over it until descending.
+    // Ground-roll contact scores the target.
     if (hopZ <= shooter.r * 1.35) for (const t of targets) if (!t.cleared) collide(shooter, t, true);
     for (let a = 0; a < targets.length; a++)
       for (let b = a + 1; b < targets.length; b++)
@@ -384,7 +380,7 @@ function render() {
   ctx.fillStyle="rgba(72,42,24,.84)";ctx.fillRect(W-103,H-92,94,72);
   ctx.fillStyle="#ffe5a2";ctx.textAlign="center";ctx.font="bold 13px system-ui,sans-serif";
   ctx.fillText("POTLI",W-56,H-71);ctx.font="12px system-ui,sans-serif";
-  ctx.fillText("Finds "+collection.total,W-56,H-49);
+  ctx.fillText(collection.total+" / 12",W-56,H-49);
   ctx.fillText("BOOK ↗",W-56,H-30);
   if (mode === "celebrating") {
     // Fast radial burst: stars + flower-like petals, driven entirely by celebrationAge.
