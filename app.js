@@ -14,6 +14,11 @@ let impactFlash = 0, audio = null, lastFrame = 0;
 let shots = 0, hits = 0, shotHit = false, resultText = "", resultAge = 0;
 let cleared = 0, roundShots = 0, rounds = 1;
 let bestShots = null, completedShots = 0, celebrationAge = 0;
+const CHAPTERS=["First Flick","Glass Garden","Crossfire","Long Shot","Tricky Angles","Master's Yard","Kancha Dominion"];
+const TOTAL_LEVELS=105;
+let level=1, levelPicker=false, musicOn=false, musicGain=null, musicNext=0, musicStep=0;
+const bestByLevel=Array(TOTAL_LEVELS).fill(null);
+const clampLevel=n=>Math.max(1,Math.min(TOTAL_LEVELS,n));
 const MAX_PULL = 190;
 const FRICTION = 1.45; // gentler rolling resistance so deliberate soft shots can reach
 const RESTITUTION = 0.86;
@@ -25,15 +30,21 @@ function makeMarble(x, y, r, mass, color) {
 function reset() {
   const r = clamp(Math.min(W, H) * 0.046, 13, 22);
   shooter = makeMarble(W * 0.5, H * 0.74, r, 1.12, "#111318");
-  targets = [
-    makeMarble(W * 0.5, H * 0.365, r * 0.95, 1, "#249e72"),
-    makeMarble(W * 0.28, H * 0.49, r * 0.95, 1, "#257fc0"),
-    makeMarble(W * 0.72, H * 0.49, r * 0.95, 1, "#249e72")
+  // All 105 levels are selectable; three targets remain constant.
+  const chapter=Math.floor((level-1)/15), stage=(level-1)%15;
+  const spread=.17+Math.min(chapter*.018+stage*.003,.12);
+  const shift=((stage*7+chapter*3)%9-4)*.012;
+  const top=.355-Math.min(chapter*.009+stage*.001,.065);
+  targets=[
+    makeMarble(W*(.5+shift),H*top,r*.95,1,chapter%2?"#257fc0":"#249e72"),
+    makeMarble(W*(.5-spread),H*(.475+((stage%3)-1)*.018),r*.95,1,"#257fc0"),
+    makeMarble(W*(.5+spread),H*(.485+((stage%4)-1.5)*.014),r*.95,1,"#249e72")
   ];
   cleared = 0; roundShots = 0;
   drag = null; mode = "ready"; shotTime = 0; restTime = 0; impactFlash = 0;
   hopZ = 0; hopV = 0; landedOnce = false;
   lastSpawnX = shooter.x;
+  if(level>1)placeShooterChallenge();
   reward = null; postFlick = 0;
 }
 function placeShooterChallenge() {
@@ -74,6 +85,26 @@ function unlockAudio() {
     if (audio.state === "suspended") audio.resume();
   } catch (_) { audio = null; }
 }
+function setupMusic(){
+  if(!audio)return;
+  if(!musicGain){musicGain=audio.createGain();musicGain.gain.value=0;musicGain.connect(audio.destination);}
+  musicGain.gain.setTargetAtTime(musicOn?.012:0,audio.currentTime,.15);
+  if(musicOn)musicNext=audio.currentTime+.08;
+}
+function updateMusic(){
+  if(!musicOn||!audio||!musicGain||audio.state!=="running")return;
+  // Original, generated-in-code quiet pentatonic ambience: no third-party samples or recording.
+  const notes=[196,246.94,293.66,329.63,392,329.63,293.66,246.94,220,261.63,329.63,392,329.63,261.63,220,196];
+  while(musicNext<audio.currentTime+.20){
+    const start=Math.max(musicNext,audio.currentTime+.01),freq=notes[musicStep%notes.length];
+    const osc=audio.createOscillator(),env=audio.createGain();
+    osc.type="sine";osc.frequency.setValueAtTime(freq,start);
+    env.gain.setValueAtTime(.0001,start);env.gain.exponentialRampToValueAtTime(.17,start+.13);
+    env.gain.exponentialRampToValueAtTime(.0001,start+1.6);
+    osc.connect(env).connect(musicGain);osc.start(start);osc.stop(start+1.65);
+    musicStep++;musicNext=start+.65;
+  }
+}
 function rewardSound(kind=0) {
   if(!audio)return;
   try{
@@ -93,14 +124,14 @@ function spawnCoins(x,y) {
 }
 function spawnLevelBurst() {
   const colors=["#d52f3f","#f0802e","#7a4fc7","#267dcc"];
-  for(let i=0;i<36;i++)levelBurst.push({x:W/2,y:H*.48,vx:(Math.random()-.5)*270,vy:-95-Math.random()*220,age:0,color:colors[i%4],spin:Math.random()*6.28});
+  for(let i=0;i<90;i++)levelBurst.push({x:W/2+(Math.random()-.5)*W*.32,y:H*.48,vx:(Math.random()-.5)*360,vy:-125-Math.random()*300,age:0,color:colors[i%4],spin:Math.random()*6.28});
   rewardSound(1);
 }
 function updateFX(dt){
   for(const c of coinBursts){c.age+=dt;c.vy+=300*dt;c.x+=c.vx*dt;c.y+=c.vy*dt;c.spin+=dt*10}
   coinBursts=coinBursts.filter(c=>c.age<.95);
   for(const p of levelBurst){p.age+=dt;p.vy+=240*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.spin+=dt*8}
-  levelBurst=levelBurst.filter(p=>p.age<1.6);
+  levelBurst=levelBurst.filter(p=>p.age<2.3);
 }
 function drawFX(){
   ctx.save();
@@ -110,7 +141,7 @@ function drawFX(){
     ctx.fillStyle=g;ctx.beginPath();ctx.ellipse(0,0,7,4.5,0,0,Math.PI*2);ctx.fill();ctx.strokeStyle="#fff0a8";ctx.lineWidth=1;ctx.stroke();ctx.restore();
   }
   for(const p of levelBurst){
-    ctx.globalAlpha=clamp(1-p.age/1.6,0,1);ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.spin);
+    ctx.globalAlpha=clamp(1-p.age/2.3,0,1);ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.spin);
     const g=ctx.createLinearGradient(-8,-8,8,8);g.addColorStop(0,"#fff");g.addColorStop(.28,p.color);g.addColorStop(.72,p.color);g.addColorStop(1,"#333");
     ctx.fillStyle=g;ctx.beginPath();ctx.arc(0,0,7,0,Math.PI*2);ctx.fill();ctx.restore();
   }
@@ -141,6 +172,15 @@ canvas.addEventListener("pointerdown", e => {
   const p = position(e);
   if(collectionOpen){collectionOpen=false;e.preventDefault();return;}
   if (p.x > W-112 && p.y > H-100) {collectionOpen=true;e.preventDefault();return;}
+  if(p.y<76 && p.x<105){levelPicker=!levelPicker;e.preventDefault();return;}
+  if(p.y<76 && p.x>W-105){musicOn=!musicOn;unlockAudio();setupMusic();e.preventDefault();return;}
+  if(levelPicker){
+    const top=H*.18,cellW=(W-24)/5,cellH=Math.min(42,H*.057);
+    const col=Math.floor((p.x-12)/cellW),row=Math.floor((p.y-top)/cellH);
+    if(col>=0&&col<5&&row>=0&&row<21){level=clampLevel(row*5+col+1);levelPicker=false;reset();}
+    else levelPicker=false;
+    e.preventDefault();return;
+  }
   if (mode !== "ready" || reward) return;
   const dist = Math.hypot(p.x - shooter.x, p.y - shooter.y);
   if (dist > Math.max(shooter.r * 2.4, 34)) return;
@@ -303,12 +343,13 @@ function drawCollectionBook() {
 function update(dt) {
   impactFlash = Math.max(0, impactFlash - dt);
   updateFX(dt);
+  updateMusic();
   postFlick = Math.max(0, postFlick-dt);
   updateReward(dt);
   if (resultText) resultAge += dt;
   if (mode === "celebrating") {
     celebrationAge += dt;
-    if (celebrationAge >= 3.0 && !reward) { rounds++; reset(); }
+    if (celebrationAge >= 3.6 && !reward) { level=level%TOTAL_LEVELS+1; rounds=level; reset(); }
     return;
   }
   if (mode !== "moving") return;
@@ -341,6 +382,7 @@ function update(dt) {
     if (cleared === 3) {
       completedShots = roundShots;
       bestShots = bestShots === null ? roundShots : Math.min(bestShots, roundShots);
+      bestByLevel[level-1]=bestByLevel[level-1]===null?roundShots:Math.min(bestByLevel[level-1],roundShots);
       celebrationAge = 0;
       mode = "celebrating";
       resultText = ""; resultAge = 0;
@@ -382,11 +424,13 @@ function render() {
   ctx.fillStyle = "#263238";
   ctx.font = "600 12px system-ui, sans-serif";
   ctx.letterSpacing = "1.6px";
-  ctx.fillText("KANCHEY — THREE TARGETS", W / 2, Math.max(35, H * 0.09));
+  ctx.fillText("KANCHEY  •  "+CHAPTERS[Math.floor((level-1)/15)].toUpperCase(), W / 2, Math.max(35, H * 0.09));
+  ctx.fillStyle="#2c5360";ctx.font="bold 12px system-ui,sans-serif";
+  ctx.fillText("LEVELS",42,43);ctx.fillText(musicOn?"♫ ON":"♫ OFF",W-42,43);ctx.fillStyle="#263238";
   ctx.font = "600 17px system-ui, sans-serif";
   ctx.fillText("HITS " + hits + " / " + shots, W / 2, Math.max(63, H * 0.14));
   ctx.font = "600 14px system-ui, sans-serif";
-  ctx.fillText("ROUND " + rounds + "  •  CLEARED " + cleared + "/3  •  SHOTS " + roundShots, W / 2, Math.max(87, H * 0.18));
+  ctx.fillText("LEVEL " + level + "/105  •  CLEARED " + cleared + "/3  •  SHOTS " + roundShots, W / 2, Math.max(87, H * 0.18));
   ctx.font = "600 13px system-ui, sans-serif";
   ctx.fillText("BEST " + (bestShots === null ? "—" : bestShots + " SHOTS"), W / 2, Math.max(109, H * 0.215));
   if (resultText && resultAge < 1.2) {
@@ -464,14 +508,28 @@ function render() {
     ctx.shadowColor = "rgba(77,39,14,0.9)";
     ctx.shadowBlur = 7;
     ctx.font = "bold " + Math.min(25, W * 0.059) + "px system-ui, sans-serif";
-    ctx.fillText("ALL THREE CLEARED!", cx, cy - 39);
+    ctx.fillText("LEVEL "+level+" CLEARED!", cx, cy - 39);
     ctx.font = "bold 23px system-ui, sans-serif";
     ctx.fillText(completedShots + (completedShots === 1 ? " SHOT" : " SHOTS"), cx, cy + 1);
     ctx.font = "600 14px system-ui, sans-serif";
-    ctx.fillText("NEXT ROUND STARTING…", cx, cy + 39);
+    ctx.fillText(level===105?"ALL 105 LEVELS COMPLETE!":"NEXT LEVEL UNLOCKED!", cx, cy + 39);
     ctx.shadowBlur = 0;
   }
   drawCollectionBook();
+  if(levelPicker){
+    const top=H*.18,cellW=(W-24)/5,cellH=Math.min(42,H*.057);
+    ctx.fillStyle="rgba(248,252,253,.98)";ctx.fillRect(6,top-38,W-12,cellH*21+45);
+    ctx.strokeStyle="#76a8b0";ctx.strokeRect(6,top-38,W-12,cellH*21+45);
+    ctx.textAlign="center";ctx.fillStyle="#23424d";ctx.font="bold 15px system-ui,sans-serif";
+    ctx.fillText("105 LEVELS  •  ALL UNLOCKED",W/2,top-18);
+    for(let i=0;i<105;i++){
+      const x=12+(i%5)*cellW,y=top+Math.floor(i/5)*cellH;
+      ctx.fillStyle=i+1===level?"#2b91b3":bestByLevel[i]!==null?"#50b38e":"#e5f0f3";
+      ctx.fillRect(x+2,y+2,cellW-5,cellH-5);
+      ctx.fillStyle=i+1===level||bestByLevel[i]!==null?"#fff":"#264653";
+      ctx.font="bold 11px system-ui,sans-serif";ctx.fillText(String(i+1),x+cellW/2,y+cellH/2);
+    }
+  }
   if (impactFlash > 0) {
     for (const t of targets) {
       if (!t.cleared) continue;
