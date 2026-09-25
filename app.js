@@ -35,10 +35,11 @@ function reset() {
   const spread=.17+Math.min(chapter*.018+stage*.003,.12);
   const shift=((stage*7+chapter*3)%9-4)*.012;
   const top=.355-Math.min(chapter*.009+stage*.001,.065);
+  const targetScale=Math.max(.62,.95-chapter*.038-stage*.004);
   targets=[
-    makeMarble(W*(.5+shift),H*top,r*.95,1,chapter%2?"#257fc0":"#249e72"),
-    makeMarble(W*(.5-spread),H*(.475+((stage%3)-1)*.018),r*.95,1,"#257fc0"),
-    makeMarble(W*(.5+spread),H*(.485+((stage%4)-1.5)*.014),r*.95,1,"#249e72")
+    makeMarble(W*(.5+shift),H*top,r*targetScale,1,chapter%2?"#257fc0":"#249e72"),
+    makeMarble(W*(.5-spread),H*(.475+((stage%3)-1)*.018),r*targetScale,1,"#257fc0"),
+    makeMarble(W*(.5+spread),H*(.485+((stage%4)-1.5)*.014),r*targetScale,1,"#249e72")
   ];
   cleared = 0; roundShots = 0;
   drag = null; mode = "ready"; shotTime = 0; restTime = 0; impactFlash = 0;
@@ -175,7 +176,7 @@ canvas.addEventListener("pointerdown", e => {
   if(p.y<76 && p.x<105){levelPicker=!levelPicker;e.preventDefault();return;}
   if(p.y<76 && p.x>W-105){musicOn=!musicOn;unlockAudio();setupMusic();e.preventDefault();return;}
   if(levelPicker){
-    const top=H*.18,cellW=(W-24)/5,cellH=Math.min(42,H*.057);
+    const top=H*.18,cellW=(W-24)/5,cellH=Math.min(42,H*.72/21);
     const col=Math.floor((p.x-12)/cellW),row=Math.floor((p.y-top)/cellH);
     if(col>=0&&col<5&&row>=0&&row<21){level=clampLevel(row*5+col+1);levelPicker=false;reset();}
     else levelPicker=false;
@@ -517,7 +518,7 @@ function render() {
   }
   drawCollectionBook();
   if(levelPicker){
-    const top=H*.18,cellW=(W-24)/5,cellH=Math.min(42,H*.057);
+    const top=H*.18,cellW=(W-24)/5,cellH=Math.min(42,H*.72/21);
     ctx.fillStyle="rgba(248,252,253,.98)";ctx.fillRect(6,top-38,W-12,cellH*21+45);
     ctx.strokeStyle="#76a8b0";ctx.strokeRect(6,top-38,W-12,cellH*21+45);
     ctx.textAlign="center";ctx.fillStyle="#23424d";ctx.font="bold 15px system-ui,sans-serif";
