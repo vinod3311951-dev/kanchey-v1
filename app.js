@@ -297,21 +297,29 @@ function drawHandPose(alpha) {
   if(alpha<=0)return;
   const sx=shooter.x,sy=shooter.y,tension=drag?clamp(Math.hypot(sx-drag.x,sy-drag.y)/MAX_PULL,0,1):0;
   ctx.save();ctx.globalAlpha=alpha;ctx.lineCap="round";ctx.lineJoin="round";
-  // Two clearly hand-like silhouettes: palms sit lower; fingers point toward the striker.
-  const skin="#a96f49",edge="#70452d";
+  const skin="#a96f49",edge="#70452d",nail="#f1c8ad";
+  // Palms.
   ctx.fillStyle=skin;ctx.strokeStyle=edge;ctx.lineWidth=2;
-  ctx.beginPath();ctx.ellipse(sx-42,sy+45,28,20,-.18,0,Math.PI*2);ctx.fill();ctx.stroke();
-  ctx.beginPath();ctx.ellipse(sx+44,sy+46,28,20,.18,0,Math.PI*2);ctx.fill();ctx.stroke();
-  ctx.strokeStyle=skin;ctx.lineWidth=11;
-  // left index + thumb
-  ctx.beginPath();ctx.moveTo(sx-48,sy+35);ctx.lineTo(sx-25,sy+18);ctx.lineTo(sx-10,sy+10);ctx.stroke();
-  ctx.beginPath();ctx.moveTo(sx-29,sy+48);ctx.lineTo(sx-15,sy+28);ctx.stroke();
-  // right index + thumb, opening slightly under pull
-  ctx.beginPath();ctx.moveTo(sx+51,sy+36);ctx.lineTo(sx+28+tension*5,sy+18);ctx.lineTo(sx+11,sy+10);ctx.stroke();
-  ctx.beginPath();ctx.moveTo(sx+31,sy+49);ctx.lineTo(sx+16,sy+28);ctx.stroke();
-  // small finger separation marks make the forms read as hands rather than ovals
-  ctx.strokeStyle="rgba(92,54,35,.55)";ctx.lineWidth=2;
-  ctx.beginPath();ctx.moveTo(sx-56,sy+42);ctx.lineTo(sx-39,sy+34);ctx.moveTo(sx+57,sy+43);ctx.lineTo(sx+40,sy+34);ctx.stroke();
+  ctx.beginPath();ctx.ellipse(sx-43,sy+48,29,20,-.18,0,Math.PI*2);ctx.fill();ctx.stroke();
+  ctx.beginPath();ctx.ellipse(sx+45,sy+49,29,20,.18,0,Math.PI*2);ctx.fill();ctx.stroke();
+  // Four visible finger/thumb strokes per hand, converging naturally toward the marble.
+  ctx.strokeStyle=skin;ctx.lineWidth=10;
+  const fingers=[
+    [sx-59,sy+45,sx-35,sy+27],[sx-52,sy+52,sx-27,sy+32],[sx-42,sy+56,sx-20,sy+35],[sx-28,sy+48,sx-12,sy+25],
+    [sx+61,sy+46,sx+36,sy+28],[sx+54,sy+53,sx+29,sy+33],[sx+44,sy+57,sx+21,sy+36],[sx+30,sy+49,sx+13,sy+25]
+  ];
+  for(const q of fingers){ctx.beginPath();ctx.moveTo(q[0],q[1]);ctx.lineTo(q[2],q[3]);ctx.stroke();}
+  // Index fingertips reach closest to the striker; right hand opens subtly with pull.
+  ctx.lineWidth=11;ctx.beginPath();ctx.moveTo(sx-34,sy+31);ctx.lineTo(sx-10,sy+12);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(sx+36+tension*4,sy+31);ctx.lineTo(sx+11,sy+12);ctx.stroke();
+  // Small pale nails at the two most readable fingertips establish the forms as hands.
+  ctx.fillStyle=nail;ctx.strokeStyle="rgba(112,69,45,.55)";ctx.lineWidth=1;
+  ctx.beginPath();ctx.ellipse(sx-11,sy+13,5.3,3.3,-.65,0,Math.PI*2);ctx.fill();ctx.stroke();
+  ctx.beginPath();ctx.ellipse(sx+12,sy+13,5.3,3.3,.65,0,Math.PI*2);ctx.fill();ctx.stroke();
+  // Palm creases.
+  ctx.strokeStyle="rgba(92,54,35,.48)";ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(sx-61,sy+51);ctx.quadraticCurveTo(sx-45,sy+40,sx-31,sy+44);
+  ctx.moveTo(sx+63,sy+52);ctx.quadraticCurveTo(sx+47,sy+41,sx+32,sy+45);ctx.stroke();
   ctx.restore();
 }
 function drawReward() {
