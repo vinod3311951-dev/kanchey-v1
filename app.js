@@ -1,5 +1,5 @@
 "use strict";
-// KANCHEY — Three-target challenge. Approved launch physics unchanged.
+// KANCHEY — Hour 4: round completion and best-shot challenge. Physics unchanged.
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d", { alpha: false });
 let W = 0, H = 0, dpr = 1, scale = 1;
@@ -7,6 +7,7 @@ let shooter, targets = [], drag = null, mode = "ready", shotTime = 0, restTime =
 let impactFlash = 0, audio = null, lastFrame = 0;
 let shots = 0, hits = 0, shotHit = false, resultText = "", resultAge = 0;
 let cleared = 0, roundShots = 0, rounds = 1;
+let bestShots = null, completedShots = 0, celebrationAge = 0;
 const MAX_PULL = 190;
 const FRICTION = 1.45; // gentler rolling resistance so deliberate soft shots can reach
 const RESTITUTION = 0.86;
@@ -146,6 +147,11 @@ function collide(a, b, scoreHit = false) {
 function update(dt) {
   impactFlash = Math.max(0, impactFlash - dt);
   if (resultText) resultAge += dt;
+  if (mode === "celebrating") {
+    celebrationAge += dt;
+    if (celebrationAge >= 2.8) { rounds++; reset(); }
+    return;
+  }
   if (mode !== "moving") return;
   shotTime += dt;
   // Substeps reduce tunnelling on small screens and strong flicks.
@@ -170,7 +176,11 @@ function update(dt) {
     if (!shotHit) { resultText = "MISS"; resultAge = 0; }
     // Keep cleared targets out of subsequent shots; restart the shooter only.
     if (cleared === 3) {
-      rounds++; reset();
+      completedShots = roundShots;
+      bestShots = bestShots === null ? roundShots : Math.min(bestShots, roundShots);
+      celebrationAge = 0;
+      mode = "celebrating";
+      resultText = ""; resultAge = 0;
     } else {
       const r = shooter.r;
       shooter = makeMarble(W * 0.5, H * 0.74, r, 1.12, "#1b71d2");
@@ -197,11 +207,13 @@ function render() {
   ctx.fillStyle = "#55361f";
   ctx.font = "600 12px system-ui, sans-serif";
   ctx.letterSpacing = "1.6px";
-  ctx.fillText("KANCHEY — SHOT TEST", W / 2, Math.max(35, H * 0.09));
+  ctx.fillText("KANCHEY — THREE TARGETS", W / 2, Math.max(35, H * 0.09));
   ctx.font = "600 17px system-ui, sans-serif";
   ctx.fillText("HITS " + hits + " / " + shots, W / 2, Math.max(63, H * 0.14));
   ctx.font = "600 14px system-ui, sans-serif";
   ctx.fillText("ROUND " + rounds + "  •  CLEARED " + cleared + "/3  •  SHOTS " + roundShots, W / 2, Math.max(87, H * 0.18));
+  ctx.font = "600 13px system-ui, sans-serif";
+  ctx.fillText("BEST " + (bestShots === null ? "—" : bestShots + " SHOTS"), W / 2, Math.max(109, H * 0.215));
   if (resultText && resultAge < 1.2) {
     ctx.font = "bold 26px system-ui, sans-serif";
     ctx.fillStyle = resultText === "HIT!" ? "#f7e9b1" : "#55361f";
@@ -231,6 +243,18 @@ function render() {
   }
   for (const t of targets) if (!t.cleared) drawBall(t);
   drawBall(shooter);
+  if (mode === "celebrating") {
+    ctx.fillStyle = "rgba(71,43,22,0.83)";
+    const panelW = Math.min(W - 36, 330), panelH = 154;
+    ctx.fillRect((W-panelW)/2, H*0.48-panelH/2, panelW, panelH);
+    ctx.fillStyle = "#fff0c6";
+    ctx.font = "bold 27px system-ui, sans-serif";
+    ctx.fillText("ALL THREE CLEARED!", W/2, H*0.48-38);
+    ctx.font = "600 21px system-ui, sans-serif";
+    ctx.fillText(completedShots + (completedShots === 1 ? " SHOT" : " SHOTS"), W/2, H*0.48+2);
+    ctx.font = "500 14px system-ui, sans-serif";
+    ctx.fillText("NEXT ROUND STARTING…", W/2, H*0.48+43);
+  }
   if (impactFlash > 0) {
     for (const t of targets) {
       if (!t.cleared) continue;
