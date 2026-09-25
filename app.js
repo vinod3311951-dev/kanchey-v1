@@ -6,6 +6,7 @@ let W = 0, H = 0, dpr = 1, scale = 1;
 let shooter, targets = [], drag = null, mode = "ready", shotTime = 0, restTime = 0;
 let hopZ = 0, hopV = 0, landedOnce = false;
 let reward = null, collectionOpen = false, postFlick = 0;
+let coinBursts = [], levelBurst = [];
 const collection = { found: Array(12).fill(false), total: 0 };
 const REWARD_COLORS = ["#efc94c","#d45b48","#4f9bd8","#6ab66d","#a978cf","#e8914b","#55b9ae","#d9789c","#8b744e","#d8d8d0","#6688bd","#c9a457"];
 let lastSpawnX = 0;
@@ -72,6 +73,48 @@ function unlockAudio() {
     if (!audio) audio = new (window.AudioContext || window.webkitAudioContext)();
     if (audio.state === "suspended") audio.resume();
   } catch (_) { audio = null; }
+}
+function rewardSound(kind=0) {
+  if(!audio)return;
+  try{
+    const t=audio.currentTime, notes=kind?[523,659,784,1047]:[880,1175,1568];
+    notes.forEach((hz,i)=>{
+      const o=audio.createOscillator(),g=audio.createGain(),start=t+i*.065;
+      o.type=kind?"triangle":"sine";o.frequency.setValueAtTime(hz,start);
+      g.gain.setValueAtTime(.0001,start);g.gain.exponentialRampToValueAtTime(kind?.045:.032,start+.008);
+      g.gain.exponentialRampToValueAtTime(.0001,start+.19);
+      o.connect(g).connect(audio.destination);o.start(start);o.stop(start+.2);
+    });
+  }catch(_){}
+}
+function spawnCoins(x,y) {
+  for(let i=0;i<9;i++)coinBursts.push({x,y,vx:(i-4)*35+(Math.random()-.5)*24,vy:-130-Math.random()*85,age:0,spin:Math.random()*6.28});
+  rewardSound(0);
+}
+function spawnLevelBurst() {
+  const colors=["#d52f3f","#f0802e","#7a4fc7","#267dcc"];
+  for(let i=0;i<36;i++)levelBurst.push({x:W/2,y:H*.48,vx:(Math.random()-.5)*270,vy:-95-Math.random()*220,age:0,color:colors[i%4],spin:Math.random()*6.28});
+  rewardSound(1);
+}
+function updateFX(dt){
+  for(const c of coinBursts){c.age+=dt;c.vy+=300*dt;c.x+=c.vx*dt;c.y+=c.vy*dt;c.spin+=dt*10}
+  coinBursts=coinBursts.filter(c=>c.age<.95);
+  for(const p of levelBurst){p.age+=dt;p.vy+=240*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.spin+=dt*8}
+  levelBurst=levelBurst.filter(p=>p.age<1.6);
+}
+function drawFX(){
+  ctx.save();
+  for(const c of coinBursts){
+    ctx.globalAlpha=clamp(1-c.age/.95,0,1);ctx.save();ctx.translate(c.x,c.y);ctx.rotate(c.spin);
+    const g=ctx.createLinearGradient(-7,0,7,0);g.addColorStop(0,"#9f6b12");g.addColorStop(.45,"#ffe47a");g.addColorStop(1,"#c88b1c");
+    ctx.fillStyle=g;ctx.beginPath();ctx.ellipse(0,0,7,4.5,0,0,Math.PI*2);ctx.fill();ctx.strokeStyle="#fff0a8";ctx.lineWidth=1;ctx.stroke();ctx.restore();
+  }
+  for(const p of levelBurst){
+    ctx.globalAlpha=clamp(1-p.age/1.6,0,1);ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.spin);
+    const g=ctx.createLinearGradient(-8,-8,8,8);g.addColorStop(0,"#fff");g.addColorStop(.28,p.color);g.addColorStop(.72,p.color);g.addColorStop(1,"#333");
+    ctx.fillStyle=g;ctx.beginPath();ctx.arc(0,0,7,0,Math.PI*2);ctx.fill();ctx.restore();
+  }
+  ctx.restore();
 }
 function clickSound(intensity) {
   if (!audio) return;
@@ -169,7 +212,9 @@ function collide(a, b, scoreHit = false) {
   impactFlash = 0.16;
   if (scoreHit && !b.cleared) {
     b.cleared = true; cleared++; hits++; shotHit = true;
+    spawnCoins(b.x,b.y);
     spawnReward(b.x,b.y);
+    if(cleared===3) spawnLevelBurst();
     resultText = cleared === 3 ? "ALL THREE!" : "HIT!"; resultAge = 0;
   }
 }
@@ -257,6 +302,7 @@ function drawCollectionBook() {
 }
 function update(dt) {
   impactFlash = Math.max(0, impactFlash - dt);
+  updateFX(dt);
   postFlick = Math.max(0, postFlick-dt);
   updateReward(dt);
   if (resultText) resultAge += dt;
@@ -383,6 +429,7 @@ function render() {
   if(!drag && (mode==="ready" || postFlick>0))drawHandPose(mode==="ready"?0.85:postFlick/0.48*0.65);
   drawBall(shooter);
   drawReward();
+  drawFX();
   // Potli tray remains visible; collection book opens with a tap.
   // Compact colourful Potli chip. One tap opens; tapping the overlay anywhere closes.
   ctx.fillStyle="rgba(27,49,55,.92)";ctx.fillRect(W-96,H-76,84,56);
