@@ -468,6 +468,18 @@ function render() {
   if (energy>0) { const eg=ctx.createLinearGradient(barX,0,barX+barW,0);eg.addColorStop(0,"#43b6e8");eg.addColorStop(.5,"#4bd08a");eg.addColorStop(1,"#ffd64a");ctx.fillStyle=eg;ctx.fillRect(barX,barY,barW*energy,barH); }
   ctx.strokeStyle="rgba(42,63,68,.42)"; ctx.lineWidth=1.5; ctx.strokeRect(barX,barY,barW,barH);
   labelBox("ENERGY  "+Math.round(energy*100)+"%",W/2,barY-21,"700 10px system-ui, sans-serif","#e8ecee",10,21);
+  // AUDIT 2 #10: separate, persistent level progress; never conflated with shot ENERGY.
+  const progressY=barY+29,progressH=9,progress=clamp(cleared/3,0,1);
+  ctx.fillStyle="#e8ecee";ctx.fillRect(barX,progressY,barW,progressH);
+  if(progress>0){
+    const pg=ctx.createLinearGradient(barX,0,barX+barW,0);
+    pg.addColorStop(0,"#1597c4");pg.addColorStop(1,"#087f5b");
+    ctx.fillStyle=pg;ctx.fillRect(barX,progressY,barW*progress,progressH);
+  }
+  ctx.strokeStyle="rgba(42,63,68,.35)";ctx.lineWidth=1;ctx.strokeRect(barX,progressY,barW,progressH);
+  ctx.fillStyle="#263238";ctx.textAlign="right";ctx.font="bold 10px system-ui,sans-serif";
+  ctx.fillText("PROGRESS "+cleared+"/3",barX+barW,progressY+progressH+11);
+  ctx.textAlign="center";
   for (const t of targets) {
     if (t.cleared) continue;
     ctx.beginPath(); ctx.arc(t.x, t.y, t.r + 20, 0, Math.PI * 2);
