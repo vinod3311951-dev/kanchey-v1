@@ -1,5 +1,5 @@
 "use strict";
-// KANCHEY — flat-ground glass-marble game: black striker rolls only; no hop.
+// KANCHEY — black striker makes a short visible hop, lands, then rolls.
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d", { alpha: false });
 let W = 0, H = 0, dpr = 1, scale = 1;
@@ -219,8 +219,8 @@ function release(e, cancelled = false) {
   shooter.vx = (dx / norm) * speed;
   shooter.vy = (dy / norm) * speed;
   mode = "moving"; shotTime = 0; restTime = 0;
-  // Ground roll only — black striker must never hop.
-  hopZ = 0; hopV = 0; landedOnce = true; postFlick = 0.48;
+  // Short visible hop on release.
+  hopZ = 0; hopV = 185 + 105 * power; landedOnce = false; postFlick = 0.48;
   shots++; roundShots++; shotHit = false; resultText = ""; resultAge = 0;
   e.preventDefault();
 }
@@ -359,9 +359,8 @@ function update(dt) {
   }
   if (mode !== "moving") return;
   shotTime += dt;
-  // Flat-ground rolling only: no vertical hop or skip.
-  hopZ = 0; hopV = 0;
-  if (hopZ <= 0) { hopZ = 0; if (!landedOnce && hopV < 0) { landedOnce = true; hopV = 0; } }
+  // Short ballistic hop while horizontal shot physics continue.
+  if(!landedOnce){hopZ+=hopV*dt;hopV-=760*dt;if(hopZ<=0&&hopV<0){hopZ=0;hopV=0;landedOnce=true;}}else hopZ=0;
   // Substeps reduce tunnelling on small screens and strong flicks.
   const steps = Math.max(1, Math.ceil(dt / (1 / 120)));
   const step = dt / steps;
@@ -372,8 +371,8 @@ function update(dt) {
       b.vx *= decay; b.vy *= decay;
       wall(b);
     }
-    // Ground-roll contact scores the target.
-    if (hopZ <= shooter.r * 1.35) for (const t of targets) if (!t.cleared) collide(shooter, t, true);
+    // Low/descending striker can hit; at the apex it passes above.
+    if (hopZ <= shooter.r * 1.55) for (const t of targets) if (!t.cleared) collide(shooter, t, true);
     for (let a = 0; a < targets.length; a++)
       for (let b = a + 1; b < targets.length; b++)
         if (!targets[a].cleared && !targets[b].cleared) collide(targets[a], targets[b], false);
@@ -402,7 +401,8 @@ function update(dt) {
 }
 function drawBall(b) {
   // Glass-look procedural marbles: translucent shell, internal ribbon and specular highlight.
-  const lift=0, isShooter=b===shooter;
+  const isShooter=b===shooter, lift=isShooter?hopZ:0;
+  const baseY=b.y;if(lift>0)b.y-=lift;
   ctx.save();
   ctx.shadowColor="rgba(25,40,50,.20)";ctx.shadowBlur=7;ctx.shadowOffsetY=4;
   const shell=ctx.createRadialGradient(b.x-b.r*.38,b.y-b.r*.42,b.r*.06,b.x,b.y,b.r);
@@ -419,6 +419,7 @@ function drawBall(b) {
   ctx.beginPath();ctx.arc(b.x-b.r*.32,b.y-b.r*.38,b.r*.18,0,Math.PI*2);ctx.fillStyle="rgba(255,255,255,.72)";ctx.fill();
   ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,Math.PI*2);ctx.strokeStyle="rgba(50,70,75,.38)";ctx.lineWidth=1.2;ctx.stroke();
   ctx.restore();
+  if(lift>0)b.y=baseY;
 }
 function labelBox(text,cx,cy,font="600 13px system-ui, sans-serif",fill="#e8ecee",padX=12,h=27,textColor="#111820"){
   ctx.save();ctx.font=font;const w=Math.min(W-20,ctx.measureText(text).width+padX*2);
